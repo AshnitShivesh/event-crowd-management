@@ -10,7 +10,11 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://event-crowd-management-gamma.vercel.app",
+    ],
     methods: ["GET", "POST", "DELETE"],
   },
 });
@@ -574,7 +578,8 @@ app.get("/api/dashboard/:eventId", async (req, res) => {
          a.*,
          z.name AS zone_name
        FROM alerts a
-       JOIN zones z ON a.zone_id = z.id
+       JOIN zones z
+         ON a.zone_id = z.id
        WHERE z.event_id = $1
        AND a.resolved = FALSE
        ORDER BY
