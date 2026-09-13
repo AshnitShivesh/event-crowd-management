@@ -24,18 +24,16 @@ const emptyEvent = {
   description: "",
   start_time: "",
   end_time: "",
-  status: "UPCOMING",
 };
 
 const emptyZone = {
-  event_id: "",
   name: "",
   capacity: "",
 };
 
 const emptyCheckpoint = {
-  zone_id: "",
   name: "",
+  zone_id: "",
   type: "QR",
   direction: "ENTRY",
 };
@@ -50,40 +48,7 @@ const emptyTracking = {
   token: "",
   checkpoint_id: "",
   direction: "ENTRY",
-  source: "QR",
 };
-
-function getZoneStatus(zone) {
-  const capacity = Number(zone.capacity || 0);
-  const occupancy = Number(zone.current_occupancy || 0);
-
-  if (!capacity) return "NORMAL";
-
-  const percentage = (occupancy / capacity) * 100;
-
-  if (percentage >= 100) return "CRITICAL";
-  if (percentage >= 90) return "HIGH";
-  if (percentage >= 70) return "WARNING";
-
-  return "NORMAL";
-}
-
-function SetupCard({ number, color, title, text, children }) {
-  return (
-    <div className="setup-card">
-      <div className={`setup-number ${color}`}>{number}</div>
-
-      <div className="setup-content">
-        <div className="setup-title">
-          <h3>{title}</h3>
-          <p>{text}</p>
-        </div>
-
-        {children}
-      </div>
-    </div>
-  );
-}
 
 function App() {
   const [events, setEvents] = useState([]);
@@ -178,12 +143,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!selectedEvent) {
-      setZones([]);
-      setDashboard(null);
-      setAnalytics(null);
-      return;
-    }
+    if (!selectedEvent) return;
 
     loadEventData(selectedEvent);
   }, [selectedEvent]);
@@ -193,7 +153,6 @@ function App() {
 
     socket.on("tracking:update", async (result) => {
       const zoneId = Number(result?.zone?.id);
-
       if (!zoneId) return;
 
       const belongsToEvent =
@@ -211,27 +170,20 @@ function App() {
       );
 
       try {
-        const [
-          dashboardData,
-          analyticsData,
-          trackingData,
-          alertsData,
-        ] = await Promise.all([
-          getDashboard(selectedEvent),
-          getAnalytics(selectedEvent),
-          getTrackingEvents(),
-          getAlerts(),
-        ]);
+        const [dashboardData, analyticsData, trackingData, alertsData] =
+          await Promise.all([
+            getDashboard(selectedEvent),
+            getAnalytics(selectedEvent),
+            getTrackingEvents(),
+            getAlerts(),
+          ]);
 
         setDashboard(dashboardData);
         setAnalytics(analyticsData);
         setTrackingEvents(trackingData);
         setAlerts(alertsData);
       } catch (error) {
-        console.error(
-          "Real-time dashboard refresh error:",
-          error
-        );
+        console.error("Real-time refresh error:", error);
       }
     });
 
@@ -242,19 +194,14 @@ function App() {
   }, [selectedEvent]);
 
   const eventZoneIds = useMemo(
-    () =>
-      new Set(
-        zones.map((zone) => Number(zone.id))
-      ),
+    () => new Set(zones.map((zone) => Number(zone.id))),
     [zones]
   );
 
   const eventCheckpoints = useMemo(
     () =>
       checkpoints.filter((checkpoint) =>
-        eventZoneIds.has(
-          Number(checkpoint.zone_id)
-        )
+        eventZoneIds.has(Number(checkpoint.zone_id))
       ),
     [checkpoints, eventZoneIds]
   );
@@ -262,9 +209,7 @@ function App() {
   const eventTracking = useMemo(
     () =>
       trackingEvents.filter((event) =>
-        eventZoneIds.has(
-          Number(event.zone_id)
-        )
+        eventZoneIds.has(Number(event.zone_id))
       ),
     [trackingEvents, eventZoneIds]
   );
@@ -272,9 +217,7 @@ function App() {
   const eventAlerts = useMemo(
     () =>
       alerts.filter((alert) =>
-        eventZoneIds.has(
-          Number(alert.zone_id)
-        )
+        eventZoneIds.has(Number(alert.zone_id))
       ),
     [alerts, eventZoneIds]
   );
@@ -296,10 +239,7 @@ function App() {
     dashboard?.totalOccupancy ??
     zones.reduce(
       (sum, zone) =>
-        sum +
-        Number(
-          zone.current_occupancy || 0
-        ),
+        sum + Number(zone.current_occupancy || 0),
       0
     );
 
@@ -307,50 +247,41 @@ function App() {
     dashboard?.utilization ??
     (totalCapacity
       ? Math.round(
-          (totalOccupancy / totalCapacity) *
-            100
+          (totalOccupancy / totalCapacity) * 100
         )
       : 0);
 
   const totalEntries =
     analytics?.totalEntries ??
     eventTracking.filter(
-      (event) =>
-        event.direction === "ENTRY"
+      (event) => event.direction === "ENTRY"
     ).length;
 
   const totalExits =
     analytics?.totalExits ??
     eventTracking.filter(
-      (event) =>
-        event.direction === "EXIT"
+      (event) => event.direction === "EXIT"
     ).length;
 
-  const recentEvents =
-    eventTracking.slice(0, 5);
+  const recentEvents = eventTracking.slice(0, 5);
 
-  const calculatedBusiestZone =
-    useMemo(() => {
-      const counts = {};
+  const calculatedBusiestZone = useMemo(() => {
+    const counts = {};
 
-      eventTracking.forEach((event) => {
-        const name =
-          event.zone_name || "Unknown";
+    eventTracking.forEach((event) => {
+      const name = event.zone_name || "Unknown";
+      counts[name] = (counts[name] || 0) + 1;
+    });
 
-        counts[name] =
-          (counts[name] || 0) + 1;
-      });
-
-      return (
-        Object.entries(counts).sort(
-          (a, b) => b[1] - a[1]
-        )[0]?.[0] || "N/A"
-      );
-    }, [eventTracking]);
+    return (
+      Object.entries(counts).sort(
+        (a, b) => b[1] - a[1]
+      )[0]?.[0] || "N/A"
+    );
+  }, [eventTracking]);
 
   const busiestZone =
-    analytics?.busiestZone?.name ||
-    calculatedBusiestZone;
+    analytics?.busiestZone?.name || calculatedBusiestZone;
 
   async function refresh() {
     await Promise.all([
@@ -363,24 +294,18 @@ function App() {
     e.preventDefault();
 
     try {
-      const created =
-        await createEvent(eventForm);
+      const created = await createEvent(eventForm);
 
       setEventForm(emptyEvent);
 
-      const updatedEvents =
-        await getEvents();
+      const updatedEvents = await getEvents();
 
       setEvents(updatedEvents);
-      setSelectedEvent(
-        String(created.id)
-      );
+      setSelectedEvent(String(created.id));
 
       await loadEventData(created.id);
 
-      notify(
-        "Event created successfully."
-      );
+      notify("Event created successfully.");
     } catch (error) {
       notify(error.message, "error");
     }
@@ -390,8 +315,13 @@ function App() {
     e.preventDefault();
 
     if (!selectedEvent) {
+      notify("Select an event first.", "error");
+      return;
+    }
+
+    if (!zoneForm.name || !zoneForm.capacity) {
       notify(
-        "Select an event first.",
+        "Enter a zone name and capacity.",
         "error"
       );
       return;
@@ -401,19 +331,13 @@ function App() {
       await createZone({
         ...zoneForm,
         event_id: Number(selectedEvent),
-        capacity: Number(zoneForm.capacity),
       });
 
-      setZoneForm({
-        ...emptyZone,
-        event_id: selectedEvent,
-      });
+      setZoneForm(emptyZone);
 
-      await loadEventData(selectedEvent);
+      await refresh();
 
-      notify(
-        "Zone created successfully."
-      );
+      notify("Zone created successfully.");
     } catch (error) {
       notify(error.message, "error");
     }
@@ -422,39 +346,22 @@ function App() {
   async function handleCreateCheckpoint(e) {
     e.preventDefault();
 
-    if (!selectedEvent) {
-      notify(
-        "Select an event first.",
-        "error"
-      );
-      return;
-    }
-
     if (!checkpointForm.zone_id) {
-      notify(
-        "Select a zone first.",
-        "error"
-      );
+      notify("Select a zone first.", "error");
       return;
     }
 
     try {
       await createCheckpoint({
         ...checkpointForm,
-        zone_id: Number(
-          checkpointForm.zone_id
-        ),
+        zone_id: Number(checkpointForm.zone_id),
       });
 
-      setCheckpointForm(
-        emptyCheckpoint
-      );
+      setCheckpointForm(emptyCheckpoint);
 
-      await loadLists();
+      await refresh();
 
-      notify(
-        "Checkpoint created successfully."
-      );
+      notify("Checkpoint created successfully.");
     } catch (error) {
       notify(error.message, "error");
     }
@@ -463,19 +370,24 @@ function App() {
   async function handleCreateParticipant(e) {
     e.preventDefault();
 
-    try {
-      await createParticipant(
-        participantForm
-      );
+    const token =
+      participantForm.token.trim() ||
+      `EVT-${String(
+        participants.length + 1
+      ).padStart(3, "0")}`;
 
-      setParticipantForm(
-        emptyParticipant
-      );
+    try {
+      await createParticipant({
+        ...participantForm,
+        token,
+      });
+
+      setParticipantForm(emptyParticipant);
 
       await loadLists();
 
       notify(
-        "Participant created successfully."
+        `Participant added. Token: ${token}`
       );
     } catch (error) {
       notify(error.message, "error");
@@ -485,171 +397,145 @@ function App() {
   async function handleTracking(e) {
     e.preventDefault();
 
-    if (!selectedEvent) {
-      notify(
-        "Select an event first.",
-        "error"
-      );
+    if (!trackingForm.checkpoint_id) {
+      notify("Select a checkpoint.", "error");
       return;
     }
 
     try {
-      await recordTrackingEvent({
-        participantToken:
-          trackingForm.token,
-        checkpointId: Number(
-          trackingForm.checkpoint_id
-        ),
-        direction:
-          trackingForm.direction,
-        source:
-          trackingForm.source || "QR",
-      });
+      const result =
+        await recordTrackingEvent({
+          ...trackingForm,
+          checkpoint_id: Number(
+            trackingForm.checkpoint_id
+          ),
+          source:
+            mode === "DEMO"
+              ? "SIMULATOR"
+              : "QR",
+        });
 
-      setTrackingForm({
-        ...emptyTracking,
-        direction:
-          trackingForm.direction,
-        source:
-          trackingForm.source,
-      });
-
-      await refresh();
+      setTrackingForm((previous) => ({
+        ...previous,
+        token: "",
+      }));
 
       notify(
-        "Tracking event recorded."
+        result.message ||
+          "Tracking event recorded."
       );
+
+      await refresh();
     } catch (error) {
       notify(error.message, "error");
     }
   }
 
   async function handleDeleteEvent() {
-    if (!selectedEvent) return;
-
-    const eventName =
-      selectedEventObject?.name ||
-      "this event";
+    if (!selectedEventObject) return;
 
     const confirmed = window.confirm(
-      `Delete ${eventName}? This will also remove its zones and related records.`
+      `Delete "${selectedEventObject.name}"?\n\nThis will remove its zones, checkpoints, tracking history and alerts.`
     );
 
     if (!confirmed) return;
 
     try {
       await deleteEvent(
-        Number(selectedEvent)
+        selectedEventObject.id
       );
 
-      const updatedEvents =
-        await getEvents();
+      const remaining = events.filter(
+        (event) =>
+          Number(event.id) !==
+          Number(selectedEventObject.id)
+      );
 
-      setEvents(updatedEvents);
+      setEvents(remaining);
+      setZones([]);
+      setTrackingEvents([]);
+      setAlerts([]);
+      setDashboard(null);
+      setAnalytics(null);
 
-      if (updatedEvents.length) {
+      if (remaining.length) {
         setSelectedEvent(
-          String(updatedEvents[0].id)
+          String(remaining[0].id)
         );
       } else {
         setSelectedEvent("");
-        setZones([]);
-        setDashboard(null);
-        setAnalytics(null);
       }
 
-      await loadLists();
-
-      notify(
-        "Event deleted successfully."
-      );
+      notify("Event deleted successfully.");
     } catch (error) {
       notify(error.message, "error");
     }
   }
 
-  useEffect(() => {
+  const simulationConfig = {
+    NORMAL: {
+      interval: 2500,
+      batch: 1,
+      entryChance: 0.65,
+    },
+
+    REDUCED: {
+      interval: 5000,
+      batch: 1,
+      entryChance: 0.55,
+    },
+
+    BURST: {
+      interval: 1000,
+      batch: 4,
+      entryChance: 0.9,
+    },
+  };
+
+  async function runSimulationStep() {
     if (
-      mode !== "DEMO" ||
-      !selectedEvent ||
-      !simulationRunning
+      !eventCheckpoints.length ||
+      !participants.length
     ) {
       return;
     }
 
-    const interval = setInterval(async () => {
-      const eventZones =
-        zones.filter(
-          (zone) =>
-            Number(zone.event_id) ===
-            Number(selectedEvent)
-        );
+    const config =
+      simulationConfig[simMode];
 
-      const eventCheckpointsForSimulation =
-        checkpoints.filter((checkpoint) =>
-          eventZoneIds.has(
-            Number(checkpoint.zone_id)
-          )
-        );
+    let batch = config.batch;
+    let entryChance = config.entryChance;
 
-      if (
-        !eventZones.length ||
-        !eventCheckpointsForSimulation.length ||
-        !participants.length
-      ) {
-        return;
-      }
-
+    /*
+     * REDUCED MODE:
+     * The simulated event has a 60-second lifecycle.
+     * Activity is lower during the first and last 15 seconds
+     * and higher during the middle.
+     */
+    if (simMode === "REDUCED") {
       const elapsed =
-        Date.now() -
-        simulationStart.current;
+        (Date.now() -
+          simulationStart.current) %
+        60000;
 
-      const seconds =
-        elapsed / 1000;
+      const lowActivity =
+        elapsed < 15000 ||
+        elapsed >= 45000;
 
-      let selectedZone;
+      batch = lowActivity ? 1 : 2;
+      entryChance = lowActivity
+        ? 0.45
+        : 0.65;
+    }
 
-      if (
-        simMode === "BURST"
-      ) {
-        selectedZone =
-          eventZones[
-            Math.floor(
-              Math.random() *
-                eventZones.length
-            )
-          ];
-      } else if (
-        simMode === "REDUCED"
-      ) {
-        selectedZone =
-          eventZones[
-            Math.floor(
-              (seconds / 4) %
-                eventZones.length
-            )
-          ];
-      } else {
-        selectedZone =
-          eventZones[
-            Math.floor(
-              Math.random() *
-                eventZones.length
-            )
-          ];
-      }
-
-      const zoneCheckpoints =
-        eventCheckpointsForSimulation.filter(
-          (checkpoint) =>
-            Number(
-              checkpoint.zone_id
-            ) ===
-            Number(selectedZone.id)
-        );
-
-      if (!zoneCheckpoints.length)
-        return;
+    for (let i = 0; i < batch; i++) {
+      const checkpoint =
+        eventCheckpoints[
+          Math.floor(
+            Math.random() *
+              eventCheckpoints.length
+          )
+        ];
 
       const participant =
         participants[
@@ -659,119 +545,39 @@ function App() {
           )
         ];
 
-      let direction = "ENTRY";
-
-      const occupancy =
-        Number(
-          selectedZone.current_occupancy ||
-            0
-        );
-
-      const capacity =
-        Number(
-          selectedZone.capacity ||
-            0
-        );
-
-      if (
-        simMode === "REDUCED"
-      ) {
-        direction =
-          Math.random() > 0.55
-            ? "ENTRY"
-            : "EXIT";
-      } else if (
-        occupancy >= capacity
-      ) {
-        direction = "EXIT";
-      } else if (
-        occupancy <= 0
-      ) {
-        direction = "ENTRY";
-      } else {
-        direction =
-          Math.random() > 0.35
-            ? "ENTRY"
-            : "EXIT";
-      }
-
-      const matchingCheckpoints =
-        zoneCheckpoints.filter(
-          (checkpoint) =>
-            checkpoint.direction ===
-            direction
-        );
-
-      const checkpoint =
-        matchingCheckpoints.length
-          ? matchingCheckpoints[
-              Math.floor(
-                Math.random() *
-                  matchingCheckpoints.length
-              )
-            ]
-          : zoneCheckpoints[0];
+      const direction =
+        Math.random() < entryChance
+          ? "ENTRY"
+          : "EXIT";
 
       try {
         await recordTrackingEvent({
-          participantToken:
-            participant.token,
-          checkpointId:
-            Number(checkpoint.id),
+          token: participant.token,
+          checkpoint_id: Number(
+            checkpoint.id
+          ),
           direction,
-          source: "SIMULATION",
+          source: "SIMULATOR",
         });
       } catch (error) {
         console.error(
-          "Simulation tracking error:",
+          "Simulation error:",
           error
         );
       }
-    }, simMode === "BURST" ? 700 : 1500);
-
-    return () =>
-      clearInterval(interval);
-  }, [
-    mode,
-    selectedEvent,
-    simulationRunning,
-    simMode,
-    zones,
-    checkpoints,
-    participants,
-    eventZoneIds,
-  ]);
-
-  function startSimulation() {
-    if (!selectedEvent) {
-      notify(
-        "Select an event first.",
-        "error"
-      );
-      return;
     }
 
-    if (!zones.length) {
-      notify(
-        "Create at least one zone first.",
-        "error"
-      );
-      return;
-    }
+    await refresh();
+  }
 
-    if (!eventCheckpoints.length) {
-      notify(
-        "Create at least one checkpoint first.",
-        "error"
-      );
-      return;
-    }
-
-    if (!participants.length) {
-      notify(
-        "Create at least one participant first.",
-        "error"
-      );
+  useEffect(() => {
+    if (
+      mode !== "DEMO" ||
+      !selectedEvent ||
+      !eventCheckpoints.length ||
+      !participants.length
+    ) {
+      setSimulationRunning(false);
       return;
     }
 
@@ -780,82 +586,113 @@ function App() {
 
     setSimulationRunning(true);
 
-    notify(
-      `${simMode} simulation started.`
+    const interval = setInterval(
+      runSimulationStep,
+      simulationConfig[simMode].interval
     );
-  }
 
-  function stopSimulation() {
-    setSimulationRunning(false);
+    return () => {
+      clearInterval(interval);
+      setSimulationRunning(false);
+    };
+  }, [
+    mode,
+    simMode,
+    selectedEvent,
+    eventCheckpoints.length,
+    participants.length,
+  ]);
 
-    notify(
-      "Simulation paused."
-    );
+  function getZoneStatus(zone) {
+    const value = zone.capacity
+      ? Math.round(
+          (zone.current_occupancy /
+            zone.capacity) *
+            100
+        )
+      : 0;
+
+    if (value >= 100) return "CRITICAL";
+    if (value >= 90) return "HIGH";
+    if (value >= 70) return "WARNING";
+    return "NORMAL";
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="topbar-inner">
+    <div className="app">
+
+      {/* HEADER */}
+      <header className="app-header">
+        <div className="header-inner">
+
           <div className="brand">
             <div className="brand-mark">
-              ECM
+              EC
             </div>
 
             <div>
-              <strong>
+              <h1>
                 Event Crowd Management
-              </strong>
+              </h1>
 
-              <span>
-                Cloud Monitoring System
-              </span>
+              <p>
+                Real-time crowd monitoring &
+                decision support
+              </p>
             </div>
           </div>
 
           <div className="mode-switch">
-            <button
-              className={
-                mode === "LIVE"
-                  ? "active"
-                  : ""
-              }
-              onClick={() => {
-                setMode("LIVE");
-                setSimulationRunning(
-                  false
-                );
-              }}
-            >
-              LIVE
-            </button>
+            <span className="mode-label">
+              System Mode
+            </span>
 
-            <button
-              className={
-                mode === "DEMO"
-                  ? "active"
-                  : ""
-              }
-              onClick={() =>
-                setMode("DEMO")
-              }
-            >
-              DEMO
-            </button>
+            <div className="mode-buttons">
 
+              <button
+                className={
+                  mode === "LIVE"
+                    ? "mode-btn active live"
+                    : "mode-btn"
+                }
+                onClick={() =>
+                  setMode("LIVE")
+                }
+              >
+                <span className="mode-dot"></span>
+                LIVE
+              </button>
+
+              <button
+                className={
+                  mode === "DEMO"
+                    ? "mode-btn active demo"
+                    : "mode-btn"
+                }
+                onClick={() =>
+                  setMode("DEMO")
+                }
+              >
+                DEMO
+              </button>
+
+            </div>
+
+            {/* SIMULATION TOGGLES DIRECTLY UNDER DEMO */}
             {mode === "DEMO" && (
-              <div className="sim-modes">
+              <div className="simulation-mode-buttons">
+
                 {[
                   "NORMAL",
-                  "BURST",
                   "REDUCED",
+                  "BURST",
                 ].map((value) => (
                   <button
                     key={value}
                     className={
                       simMode === value
-                        ? "active"
-                        : ""
+                        ? "simulation-mode active"
+                        : "simulation-mode"
                     }
                     onClick={() =>
                       setSimMode(value)
@@ -864,13 +701,17 @@ function App() {
                     {value}
                   </button>
                 ))}
+
               </div>
             )}
+
           </div>
         </div>
       </header>
 
       <main>
+
+        {/* MESSAGE */}
         {message && (
           <div
             className={`message ${messageType}`}
@@ -887,7 +728,9 @@ function App() {
           </div>
         )}
 
+        {/* EVENT HEADER */}
         <section className="hero-card">
+
           <div>
             <span className="eyebrow">
               EVENT DASHBOARD
@@ -905,6 +748,7 @@ function App() {
           </div>
 
           <div className="event-select-box">
+
             <label>
               Monitoring event
             </label>
@@ -934,28 +778,32 @@ function App() {
             {selectedEvent && (
               <button
                 className="delete-event-btn"
-                onClick={
-                  handleDeleteEvent
-                }
+                onClick={handleDeleteEvent}
               >
                 Delete Event
               </button>
             )}
+
           </div>
         </section>
 
         {loading ? (
+
           <section className="loading-card">
             <div className="spinner"></div>
-
             <p>
               Loading event data...
             </p>
           </section>
+
         ) : (
+
           <>
+
+            {/* OVERVIEW */}
             {selectedEvent && (
               <section>
+
                 <div className="section-heading">
                   <div>
                     <span className="eyebrow">
@@ -974,6 +822,7 @@ function App() {
                 </div>
 
                 <div className="stats-grid">
+
                   <div className="stat-card blue">
                     <div className="stat-top">
                       <span>
@@ -990,8 +839,7 @@ function App() {
                     </strong>
 
                     <p>
-                      Across all monitored
-                      zones
+                      Across all monitored zones
                     </p>
                   </div>
 
@@ -1011,8 +859,7 @@ function App() {
                     </strong>
 
                     <p>
-                      People currently
-                      inside
+                      People currently inside
                     </p>
                   </div>
 
@@ -1064,12 +911,15 @@ function App() {
                         : "All zones normal"}
                     </p>
                   </div>
+
                 </div>
               </section>
             )}
 
+            {/* ZONES */}
             {selectedEvent && (
               <section>
+
                 <div className="section-heading">
                   <div>
                     <span className="eyebrow">
@@ -1087,84 +937,60 @@ function App() {
                 </div>
 
                 {zones.length ? (
+
                   <div className="zone-grid">
+
                     {zones.map((zone) => {
                       const zoneUtilization =
                         zone.capacity
                           ? Math.round(
-                              (Number(
-                                zone.current_occupancy ||
-                                  0
-                              ) /
-                                Number(
-                                  zone.capacity
-                                )) *
+                              (zone.current_occupancy /
+                                zone.capacity) *
                                 100
                             )
                           : 0;
 
                       const status =
-                        getZoneStatus(
-                          zone
-                        );
+                        getZoneStatus(zone);
 
                       return (
                         <div
-                          className={`zone-card ${status.toLowerCase()}`}
+                          className="zone-card"
                           key={zone.id}
                         >
+
                           <div className="zone-card-top">
                             <div>
-                              <span className="zone-label">
-                                ZONE
-                              </span>
-
                               <h3>
                                 {zone.name}
                               </h3>
+
+                              <span>
+                                Zone capacity{" "}
+                                {zone.capacity}
+                              </span>
                             </div>
 
                             <span
-                              className={`zone-status ${status.toLowerCase()}`}
+                              className={`status-badge ${status.toLowerCase()}`}
                             >
                               {status}
                             </span>
                           </div>
 
-                          <div className="zone-numbers">
-                            <div>
-                              <strong>
-                                {Number(
-                                  zone.current_occupancy ||
-                                    0
-                                ).toLocaleString()}
-                              </strong>
+                          <div className="zone-number">
+                            <strong>
+                              {zone.current_occupancy}
+                            </strong>
 
-                              <span>
-                                Current
-                              </span>
-                            </div>
-
-                            <div className="zone-divider">
-                              /
-                            </div>
-
-                            <div>
-                              <strong>
-                                {Number(
-                                  zone.capacity ||
-                                    0
-                                ).toLocaleString()}
-                              </strong>
-
-                              <span>
-                                Capacity
-                              </span>
-                            </div>
+                            <span>
+                              / {zone.capacity} people
+                            </span>
                           </div>
 
                           <div className="zone-progress">
                             <div
+                              className={`zone-progress-fill ${status.toLowerCase()}`}
                               style={{
                                 width: `${Math.min(
                                   zoneUtilization,
@@ -1176,31 +1002,22 @@ function App() {
 
                           <div className="zone-footer">
                             <span>
-                              {zoneUtilization}%
-                              utilized
+                              Utilization
                             </span>
 
-                            <span>
-                              {Math.max(
-                                Number(
-                                  zone.capacity ||
-                                    0
-                                ) -
-                                  Number(
-                                    zone.current_occupancy ||
-                                      0
-                                  ),
-                                0
-                              )}{" "}
-                              spaces
-                              available
-                            </span>
+                            <strong>
+                              {zoneUtilization}%
+                            </strong>
                           </div>
+
                         </div>
                       );
                     })}
+
                   </div>
+
                 ) : (
+
                   <div className="empty-state">
                     <div className="empty-icon">
                       +
@@ -1211,16 +1028,20 @@ function App() {
                     </h3>
 
                     <p>
-                      Create a zone below
-                      to begin monitoring.
+                      Create a zone below to begin
+                      monitoring.
                     </p>
                   </div>
+
                 )}
+
               </section>
             )}
 
+            {/* ANALYTICS */}
             {selectedEvent && (
               <section>
+
                 <div className="section-heading">
                   <div>
                     <span className="eyebrow">
@@ -1234,6 +1055,7 @@ function App() {
                 </div>
 
                 <div className="analytics-grid">
+
                   <div className="analytics-card">
                     <span>
                       Total Entries
@@ -1286,16 +1108,18 @@ function App() {
                     </strong>
 
                     <small>
-                      Based on tracking
-                      activity
+                      Based on tracking activity
                     </small>
                   </div>
+
                 </div>
               </section>
             )}
 
+            {/* ALERTS */}
             {selectedEvent && (
               <section>
+
                 <div className="section-heading">
                   <div>
                     <span className="eyebrow">
@@ -1313,6 +1137,7 @@ function App() {
                 </div>
 
                 {eventAlerts.length ? (
+
                   <div className="alerts-list">
                     {eventAlerts.map(
                       (alert) => (
@@ -1322,6 +1147,7 @@ function App() {
                             alert.type
                           ).toLowerCase()}`}
                         >
+
                           <div className="alert-symbol">
                             !
                           </div>
@@ -1336,20 +1162,24 @@ function App() {
                               {alert.message}
                             </p>
                           </div>
+
                         </div>
                       )
                     )}
                   </div>
+
                 ) : (
+
                   <div className="no-alerts">
+
                     <div className="check-icon">
                       ✓
                     </div>
 
                     <div>
                       <strong>
-                        All zones are
-                        operating normally
+                        All zones are operating
+                        normally
                       </strong>
 
                       <p>
@@ -1358,12 +1188,16 @@ function App() {
                         attention.
                       </p>
                     </div>
+
                   </div>
                 )}
+
               </section>
             )}
 
+            {/* EVENT SETUP */}
             <section>
+
               <div className="section-heading">
                 <div>
                   <span className="eyebrow">
@@ -1377,6 +1211,8 @@ function App() {
               </div>
 
               <div className="form-grid">
+
+                {/* EVENT */}
                 <SetupCard
                   number="01"
                   color="blue-bg"
@@ -1384,19 +1220,16 @@ function App() {
                   text="Set up a new event to monitor."
                 >
                   <form
-                    onSubmit={
-                      handleCreateEvent
-                    }
+                    onSubmit={handleCreateEvent}
                   >
+
                     <label>
                       Event name
                     </label>
 
                     <input
                       placeholder="e.g. TechFest 2026"
-                      value={
-                        eventForm.name
-                      }
+                      value={eventForm.name}
                       onChange={(e) =>
                         setEventForm({
                           ...eventForm,
@@ -1425,6 +1258,7 @@ function App() {
                     />
 
                     <div className="two-inputs">
+
                       <div>
                         <label>
                           Start time
@@ -1464,63 +1298,34 @@ function App() {
                           }
                         />
                       </div>
+
                     </div>
-
-                    <label>
-                      Status
-                    </label>
-
-                    <select
-                      value={
-                        eventForm.status
-                      }
-                      onChange={(e) =>
-                        setEventForm({
-                          ...eventForm,
-                          status:
-                            e.target.value,
-                        })
-                      }
-                    >
-                      <option>
-                        UPCOMING
-                      </option>
-
-                      <option>
-                        ACTIVE
-                      </option>
-
-                      <option>
-                        COMPLETED
-                      </option>
-                    </select>
 
                     <button className="primary-btn">
                       Create Event
                     </button>
+
                   </form>
                 </SetupCard>
 
+                {/* ZONE */}
                 <SetupCard
                   number="02"
                   color="purple-bg"
                   title="Create Zone"
-                  text="Add a monitored area and capacity."
+                  text="Define an area and its capacity."
                 >
                   <form
-                    onSubmit={
-                      handleCreateZone
-                    }
+                    onSubmit={handleCreateZone}
                   >
+
                     <label>
                       Zone name
                     </label>
 
                     <input
                       placeholder="e.g. Main Hall"
-                      value={
-                        zoneForm.name
-                      }
+                      value={zoneForm.name}
                       onChange={(e) =>
                         setZoneForm({
                           ...zoneForm,
@@ -1537,10 +1342,8 @@ function App() {
                     <input
                       type="number"
                       min="1"
-                      placeholder="e.g. 500"
-                      value={
-                        zoneForm.capacity
-                      }
+                      placeholder="Maximum people"
+                      value={zoneForm.capacity}
                       onChange={(e) =>
                         setZoneForm({
                           ...zoneForm,
@@ -1554,22 +1357,43 @@ function App() {
                     <button className="primary-btn">
                       Create Zone
                     </button>
+
                   </form>
                 </SetupCard>
 
+                {/* CHECKPOINT */}
                 <SetupCard
                   number="03"
                   color="orange-bg"
                   title="Create Checkpoint"
-                  text="Configure an entry or exit point."
+                  text="Configure a detection point."
                 >
                   <form
                     onSubmit={
                       handleCreateCheckpoint
                     }
                   >
+
                     <label>
-                      Zone
+                      Checkpoint name
+                    </label>
+
+                    <input
+                      placeholder="e.g. Main Entrance"
+                      value={
+                        checkpointForm.name
+                      }
+                      onChange={(e) =>
+                        setCheckpointForm({
+                          ...checkpointForm,
+                          name: e.target.value,
+                        })
+                      }
+                      required
+                    />
+
+                    <label>
+                      Assigned zone
                     </label>
 
                     <select
@@ -1589,40 +1413,21 @@ function App() {
                         Select zone
                       </option>
 
-                      {zones.map(
-                        (zone) => (
-                          <option
-                            key={zone.id}
-                            value={zone.id}
-                          >
-                            {zone.name}
-                          </option>
-                        )
-                      )}
+                      {zones.map((zone) => (
+                        <option
+                          key={zone.id}
+                          value={zone.id}
+                        >
+                          {zone.name}
+                        </option>
+                      ))}
                     </select>
 
-                    <label>
-                      Checkpoint name
-                    </label>
-
-                    <input
-                      placeholder="e.g. Main Gate"
-                      value={
-                        checkpointForm.name
-                      }
-                      onChange={(e) =>
-                        setCheckpointForm({
-                          ...checkpointForm,
-                          name: e.target.value,
-                        })
-                      }
-                      required
-                    />
-
                     <div className="two-inputs">
+
                       <div>
                         <label>
-                          Type
+                          Method
                         </label>
 
                         <select
@@ -1645,7 +1450,11 @@ function App() {
                           </option>
 
                           <option>
-                            MANUAL
+                            RFID
+                          </option>
+
+                          <option>
+                            BARCODE
                           </option>
                         </select>
                       </div>
@@ -1676,31 +1485,35 @@ function App() {
                           </option>
                         </select>
                       </div>
+
                     </div>
 
                     <button className="primary-btn">
                       Create Checkpoint
                     </button>
+
                   </form>
                 </SetupCard>
 
+                {/* PARTICIPANT */}
                 <SetupCard
                   number="04"
                   color="green-bg"
                   title="Create Participant"
-                  text="Register a participant token."
+                  text="Register a participant for tracking."
                 >
                   <form
                     onSubmit={
                       handleCreateParticipant
                     }
                   >
+
                     <label>
-                      Participant name
+                      Name
                     </label>
 
                     <input
-                      placeholder="e.g. Rahul Kumar"
+                      placeholder="Participant name"
                       value={
                         participantForm.name
                       }
@@ -1726,371 +1539,379 @@ function App() {
                       onChange={(e) =>
                         setParticipantForm({
                           ...participantForm,
-                          email: e.target.value,
+                          email:
+                            e.target.value,
                         })
                       }
                     />
 
                     <label>
-                      Token
+                      Participant token
                     </label>
 
                     <input
-                      placeholder="e.g. EVT-001"
+                      placeholder="Leave blank to generate automatically"
                       value={
                         participantForm.token
                       }
                       onChange={(e) =>
                         setParticipantForm({
                           ...participantForm,
-                          token: e.target.value,
+                          token:
+                            e.target.value,
                         })
                       }
-                      required
                     />
 
                     <button className="primary-btn">
-                      Create Participant
+                      Add Participant
                     </button>
+
                   </form>
                 </SetupCard>
+
               </div>
             </section>
 
-            {selectedEvent && (
-              <section>
-                <div className="section-heading">
-                  <div>
-                    <span className="eyebrow">
-                      TRACKING
-                    </span>
+            {/* TRACKING */}
+            <section className="tracking-section">
 
-                    <h2>
-                      Record Movement
-                    </h2>
-                  </div>
+              <div className="section-heading">
+                <div>
+                  <span className="eyebrow">
+                    MOVEMENT TRACKING
+                  </span>
+
+                  <h2>
+                    Record Activity
+                  </h2>
                 </div>
-
-                <form
-                  className="tracking-form"
-                  onSubmit={handleTracking}
-                >
-                  <div className="tracking-field large">
-                    <label>
-                      Participant token
-                    </label>
-
-                    <input
-                      placeholder="Scan or enter participant token"
-                      value={
-                        trackingForm.token
-                      }
-                      onChange={(e) =>
-                        setTrackingForm({
-                          ...trackingForm,
-                          token: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div className="tracking-field">
-                    <label>
-                      Checkpoint
-                    </label>
-
-                    <select
-                      value={
-                        trackingForm.checkpoint_id
-                      }
-                      onChange={(e) =>
-                        setTrackingForm({
-                          ...trackingForm,
-                          checkpoint_id:
-                            e.target.value,
-                        })
-                      }
-                      required
-                    >
-                      <option value="">
-                        Select checkpoint
-                      </option>
-
-                      {eventCheckpoints.map(
-                        (checkpoint) => (
-                          <option
-                            key={checkpoint.id}
-                            value={
-                              checkpoint.id
-                            }
-                          >
-                            {
-                              checkpoint.name
-                            }
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-
-                  <div className="tracking-field small">
-                    <label>
-                      Direction
-                    </label>
-
-                    <select
-                      value={
-                        trackingForm.direction
-                      }
-                      onChange={(e) =>
-                        setTrackingForm({
-                          ...trackingForm,
-                          direction:
-                            e.target.value,
-                        })
-                      }
-                    >
-                      <option>
-                        ENTRY
-                      </option>
-
-                      <option>
-                        EXIT
-                      </option>
-                    </select>
-                  </div>
-
-                  <button className="tracking-btn">
-                    Record Tracking
-                  </button>
-                </form>
 
                 {mode === "DEMO" && (
-                  <div className="demo-panel">
-                    <div>
-                      <span className="eyebrow">
-                        LIVE SIMULATION
-                      </span>
-
-                      <h3>
-                        {simMode} MODE
-                      </h3>
-
-                      <p>
-                        {simMode ===
-                        "BURST"
-                          ? "Heavy crowd flow with rapid entries."
-                          : simMode ===
-                            "REDUCED"
-                          ? "Lower activity at the simulated start and end, with more movement in the middle."
-                          : "Expected crowd movement through the event."}
-                      </p>
-                    </div>
-
-                    <div className="simulation-controls">
-                      <div className="simulation-status">
-                        <span
-                          className={
-                            simulationRunning
-                              ? "simulation-dot active"
-                              : "simulation-dot"
-                          }
-                        ></span>
-
-                        <div>
-                          <strong>
-                            {simulationRunning
-                              ? "SIMULATION ACTIVE"
-                              : "SIMULATION PAUSED"}
-                          </strong>
-
-                          <span>
-                            {simulationRunning
-                              ? "Automatic movement is running"
-                              : "Ready to start"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {simulationRunning ? (
-                        <button
-                          className="simulation-btn stop"
-                          onClick={
-                            stopSimulation
-                          }
-                        >
-                          Stop Simulation
-                        </button>
-                      ) : (
-                        <button
-                          className="simulation-btn"
-                          onClick={
-                            startSimulation
-                          }
-                        >
-                          Start Simulation
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </section>
-            )}
-
-            {selectedEvent && (
-              <section>
-                <div className="section-heading">
-                  <div>
-                    <span className="eyebrow">
-                      ACTIVITY LOG
-                    </span>
-
-                    <h2>
-                      Recent Tracking Events
-                    </h2>
-                  </div>
-
-                  <span className="section-count">
-                    {eventTracking.length}{" "}
-                    records
+                  <span className="demo-badge">
+                    DEMO MODE
                   </span>
+                )}
+              </div>
+
+              <form
+                className="tracking-form"
+                onSubmit={handleTracking}
+              >
+
+                <div className="tracking-field large">
+                  <label>
+                    Participant token
+                  </label>
+
+                  <input
+                    placeholder="Scan or enter participant token"
+                    value={
+                      trackingForm.token
+                    }
+                    onChange={(e) =>
+                      setTrackingForm({
+                        ...trackingForm,
+                        token: e.target.value,
+                      })
+                    }
+                    required
+                  />
                 </div>
 
-                {recentEvents.length ? (
-                  <div className="activity-table">
-                    <div className="activity-row activity-head">
-                      <span>
-                        Participant
-                      </span>
+                <div className="tracking-field">
+                  <label>
+                    Checkpoint
+                  </label>
 
-                      <span>
-                        Zone
-                      </span>
+                  <select
+                    value={
+                      trackingForm.checkpoint_id
+                    }
+                    onChange={(e) =>
+                      setTrackingForm({
+                        ...trackingForm,
+                        checkpoint_id:
+                          e.target.value,
+                      })
+                    }
+                    required
+                  >
+                    <option value="">
+                      Select checkpoint
+                    </option>
 
-                      <span>
-                        Checkpoint
-                      </span>
-
-                      <span>
-                        Direction
-                      </span>
-
-                      <span>
-                        Source
-                      </span>
-
-                      <span>
-                        Time
-                      </span>
-                    </div>
-
-                    {recentEvents.map(
-                      (event) => (
-                        <div
-                          className="activity-row"
-                          key={event.id}
+                    {eventCheckpoints.map(
+                      (checkpoint) => (
+                        <option
+                          key={checkpoint.id}
+                          value={checkpoint.id}
                         >
-                          <span>
-                            {
-                              event.participant_name ||
-                              "Unknown"
-                            }
-                          </span>
-
-                          <span>
-                            {
-                              event.zone_name ||
-                              "Unknown"
-                            }
-                          </span>
-
-                          <span>
-                            {
-                              event.checkpoint_name ||
-                              "Unknown"
-                            }
-                          </span>
-
-                          <span>
-                            <span
-                              className={`direction-badge ${String(
-                                event.direction
-                              ).toLowerCase()}`}
-                            >
-                              {
-                                event.direction
-                              }
-                            </span>
-                          </span>
-
-                          <span>
-                            {
-                              event.source ||
-                              "QR"
-                            }
-                          </span>
-
-                          <span>
-                            {event.timestamp
-                              ? new Date(
-                                  event.timestamp
-                                ).toLocaleTimeString()
-                              : "—"}
-                          </span>
-                        </div>
+                          {checkpoint.name}
+                        </option>
                       )
                     )}
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    <div className="empty-icon">
-                      —
-                    </div>
+                  </select>
+                </div>
+
+                <div className="tracking-field small">
+                  <label>
+                    Direction
+                  </label>
+
+                  <select
+                    value={
+                      trackingForm.direction
+                    }
+                    onChange={(e) =>
+                      setTrackingForm({
+                        ...trackingForm,
+                        direction:
+                          e.target.value,
+                      })
+                    }
+                  >
+                    <option>
+                      ENTRY
+                    </option>
+
+                    <option>
+                      EXIT
+                    </option>
+                  </select>
+                </div>
+
+                <button className="tracking-btn">
+                  Record Tracking
+                </button>
+
+              </form>
+
+              {/* DEMO STATUS */}
+              {mode === "DEMO" && (
+                <div className="demo-panel">
+
+                  <div>
+                    <span className="eyebrow">
+                      LIVE SIMULATION
+                    </span>
 
                     <h3>
-                      No tracking events
+                      {simMode} MODE
                     </h3>
 
                     <p>
-                      Movement records will
-                      appear here in real time.
+                      {simMode === "BURST"
+                        ? "Heavy crowd flow with rapid entries."
+                        : simMode === "REDUCED"
+                        ? "Lower activity at the simulated start and end, with more movement in the middle."
+                        : "Expected crowd movement through the event."}
                     </p>
                   </div>
-                )}
-              </section>
-            )}
 
-            <section className="system-footer">
-              <div>
-                <span className="eyebrow">
-                  CLOUD INFRASTRUCTURE
+                  <div className="simulation-status">
+
+                    <span
+                      className={
+                        simulationRunning
+                          ? "simulation-dot active"
+                          : "simulation-dot"
+                      }
+                    ></span>
+
+                    <div>
+                      <strong>
+                        {simulationRunning
+                          ? "SIMULATION ACTIVE"
+                          : "SIMULATION PAUSED"}
+                      </strong>
+
+                      <span>
+                        {simulationRunning
+                          ? "Automatic movement is running"
+                          : "Add a participant and checkpoint to begin"}
+                      </span>
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+            </section>
+
+            {/* RECENT EVENTS */}
+            <section>
+
+              <div className="section-heading">
+
+                <div>
+                  <span className="eyebrow">
+                    ACTIVITY LOG
+                  </span>
+
+                  <h2>
+                    Recent Tracking Events
+                  </h2>
+                </div>
+
+                <span className="section-count">
+                  Latest 5
                 </span>
 
-                <h2>
-                  Event Crowd Management
-                </h2>
-
-                <p>
-                  Real-time event monitoring
-                  powered by REST APIs,
-                  PostgreSQL and Socket.IO.
-                </p>
               </div>
 
-              <div className="footer-actions">
-                <button
-                  className="secondary-btn"
-                  onClick={refresh}
-                  disabled={!selectedEvent}
-                >
-                  Refresh Dashboard
-                </button>
-              </div>
+              {recentEvents.length ? (
+
+                <div className="table-container">
+
+                  <table>
+
+                    <thead>
+                      <tr>
+                        <th>
+                          Participant
+                        </th>
+
+                        <th>
+                          Zone
+                        </th>
+
+                        <th>
+                          Checkpoint
+                        </th>
+
+                        <th>
+                          Direction
+                        </th>
+
+                        <th>
+                          Source
+                        </th>
+
+                        <th>
+                          Time
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+
+                      {recentEvents.map(
+                        (event) => (
+                          <tr key={event.id}>
+
+                            <td>
+                              <strong>
+                                {event.participant_name ||
+                                  "Unknown"}
+                              </strong>
+                            </td>
+
+                            <td>
+                              {event.zone_name ||
+                                "Unknown"}
+                            </td>
+
+                            <td>
+                              {event.checkpoint_name ||
+                                "Unknown"}
+                            </td>
+
+                            <td>
+                              <span
+                                className={`direction-badge ${String(
+                                  event.direction
+                                ).toLowerCase()}`}
+                              >
+                                {event.direction}
+                              </span>
+                            </td>
+
+                            <td>
+                              <span className="source-badge">
+                                {event.source}
+                              </span>
+                            </td>
+
+                            <td>
+                              {event.timestamp
+                                ? new Date(
+                                    event.timestamp
+                                  ).toLocaleString()
+                                : "-"}
+                            </td>
+
+                          </tr>
+                        )
+                      )}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              ) : (
+
+                <div className="empty-state compact">
+                  <h3>
+                    No tracking activity yet
+                  </h3>
+
+                  <p>
+                    Recorded movement will
+                    appear here.
+                  </p>
+                </div>
+
+              )}
+
             </section>
+
           </>
         )}
       </main>
+
+      <footer>
+        <span>
+          Event Crowd Management System
+        </span>
+
+        <span>
+          Real-time monitoring • Decision support
+        </span>
+      </footer>
+
+    </div>
+  );
+}
+
+function SetupCard({
+  number,
+  color,
+  title,
+  text,
+  children,
+}) {
+  return (
+    <div className="setup-card">
+
+      <div className="form-title">
+
+        <div className={`form-icon ${color}`}>
+          {number}
+        </div>
+
+        <div>
+          <h3>{title}</h3>
+          <p>{text}</p>
+        </div>
+
+      </div>
+
+      {children}
+
     </div>
   );
 }
