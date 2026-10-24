@@ -3,6 +3,7 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const db = require("./db");
+const { requireAuth, requireRole } = require("./authMiddleware");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -15,7 +16,7 @@ const io = new Server(server, {
       "http://localhost:5174",
       "https://event-crowd-management-gamma.vercel.app",
     ],
-    methods: ["GET", "POST", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
 
@@ -123,7 +124,40 @@ app.post("/api/events", async (req, res) => {
   }
 });
 
-app.delete("/api/events/:id", async (req, res) => {
+app.put("/api/events/:id", requireAuth, requireRole("organizer"), async (req, res) => {
+  try {
+    const { name, description, startTime, endTime } = req.body;
+    if (name !== undefined && (typeof name !== "string" || !name.trim())) {
+      return res.status(400).json({ error: "Event name must be a non-empty string" });
+    }
+
+    const result = await db.query(
+      `UPDATE events
+       SET name = COALESCE($1, name),
+           description = COALESCE($2, description),
+           start_time = COALESCE($3, start_time),
+           end_time = COALESCE($4, end_time)
+       WHERE id = $5
+       RETURNING *`,
+      [
+        name === undefined ? null : name.trim(),
+        description === undefined ? null : description,
+        startTime === undefined ? null : startTime,
+        endTime === undefined ? null : endTime,
+        req.params.id,
+      ]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+    return res.json({ message: "Event updated successfully", event: result.rows[0] });
+  } catch (err) {
+    return error(res, err);
+  }
+});
+
+app.delete("/api/events/:id", requireAuth, requireRole("organizer"), async (req, res) => {
   const client = await db.connect();
 
   try {

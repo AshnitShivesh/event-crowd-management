@@ -18,6 +18,9 @@
     "express": "^5.2.1",
     "pg": "^8.23.0",
     "socket.io": "^4.8.3",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "otplib": "^13.5.0",
+    "qrcode": "^1.5.4",
+    "jsonwebtoken": "^9.0.3"
   }
 }
