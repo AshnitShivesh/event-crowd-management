@@ -145,6 +145,32 @@ router.post("/bootstrap", async (req, res) => {
   }
 });
 
+router.post("/register", async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const role = String(req.body.role || "").trim().toLowerCase();
+    if (!name || name.length > 100 || !/^\S+@\S+\.\S+$/.test(email) || email.length > 254 ||
+        password.length < MIN_PASSWORD_LENGTH || Buffer.byteLength(password, "utf8") > 72 ||
+        !["staff", "viewer"].includes(role)) {
+      return res.status(400).json({ error: "Provide a name, valid email, password of 12-72 bytes, and Staff or Viewer role." });
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    const result = await db.query(
+      `INSERT INTO users (name, email, password_hash, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, email, role, created_at`,
+      [name, email, passwordHash, role]
+    );
+    return res.status(201).json({ message: "Account created. Sign in to configure MFA.", user: result.rows[0] });
+  } catch (err) {
+    if (err.code === "23505") return res.status(409).json({ error: "An account with that email already exists." });
+    console.error("Account registration failed:", err.message);
+    return res.status(500).json({ error: "Unable to create account." });
+  }
+});
+
 router.post("/login", async (req, res) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();

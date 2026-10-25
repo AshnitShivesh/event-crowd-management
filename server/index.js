@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const db = require("./db");
 const { requireAuth, requireRole } = require("./authMiddleware");
@@ -24,6 +26,42 @@ app.use(cors());
 app.use(express.json({ limit: "100kb" }));
 app.use("/api/auth", require("./auth"));
 
+io.use(async (socket, next) => {
+  try {
+    const token = String(socket.handshake.auth?.token || "");
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!token || !jwtSecret || Buffer.byteLength(jwtSecret, "utf8") < 32) {
+      return next(new Error("Authentication required"));
+    }
+
+    const payload = jwt.verify(token, jwtSecret, {
+      issuer: "event-crowd-management",
+      audience: "event-crowd-management-client",
+    });
+    if (payload.type !== "access" || !payload.jti || !/^\d+$/.test(String(payload.sub))) {
+      return next(new Error("Invalid access token"));
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const result = await db.query(
+      `SELECT s.id, s.expires_at, s.revoked_at, u.id AS user_id, u.role, u.totp_enabled
+       FROM auth_sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.id = $1 AND s.user_id = $2 AND s.token_hash = $3`,
+      [payload.jti, Number(payload.sub), tokenHash]
+    );
+    const session = result.rows[0];
+    if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now() || !session.totp_enabled) {
+      return next(new Error("Session is invalid or expired"));
+    }
+
+    socket.data.user = { id: session.user_id, role: session.role };
+    return next();
+  } catch (_) {
+    return next(new Error("Authentication required"));
+  }
+});
+
 io.on("connection", socket => {
   console.log("Dashboard connected:", socket.id);
 
@@ -33,6 +71,17 @@ io.on("connection", socket => {
 });
 
 const error = (res, err) => res.status(500).json({ error: err.message });
+
+async function canAccessEvent(user, eventId) {
+  const result = await db.query(
+    `SELECT 1 FROM events e WHERE e.id = $1 AND (
+       (e.organizer_id = $2 AND $3 = 'organizer') OR
+       EXISTS (SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $2 AND m.role = $3)
+     )`,
+    [eventId, user.id, user.role]
+  );
+  return result.rows.length > 0;
+}
 
 /* BASIC */
 
@@ -59,23 +108,61 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-/* EVENTS */
-
-app.get("/api/events", async (req, res) => {
+/* ACCOUNT AND EVENT MEMBERSHIPS */
+app.get("/api/account", requireAuth, async (req, res) => {
   try {
-    res.json(
-      (await db.query("SELECT * FROM events ORDER BY id")).rows
-    );
-  } catch (err) {
-    error(res, err);
-  }
+    const userResult = await db.query("SELECT id, name, email, role, created_at, totp_enabled FROM users WHERE id = $1", [req.user.id]);
+    let eventsResult;
+    if (req.user.role === "organizer") {
+      eventsResult = await db.query("SELECT id, name, description, start_time, end_time, status, created_at FROM events WHERE organizer_id = $1 ORDER BY id DESC", [req.user.id]);
+    } else {
+      eventsResult = await db.query(`SELECT e.id, e.name, e.description, e.start_time, e.end_time, e.status, e.created_at, m.role AS membership_role
+        FROM event_memberships m JOIN events e ON e.id = m.event_id WHERE m.user_id = $1 ORDER BY e.id DESC`, [req.user.id]);
+    }
+    return res.json({ user: userResult.rows[0], events: eventsResult.rows });
+  } catch (err) { return error(res, err); }
 });
 
-app.get("/api/events/:id", async (req, res) => {
+app.post("/api/events/:id/members", requireAuth, requireRole("organizer"), async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const role = String(req.body.role || "").trim().toLowerCase();
+    if (!email || !["staff", "viewer"].includes(role)) return res.status(400).json({ error: "A valid email and Staff or Viewer role are required." });
+    const owned = await db.query("SELECT id FROM events WHERE id = $1 AND organizer_id = $2", [req.params.id, req.user.id]);
+    if (!owned.rows.length) return res.status(404).json({ error: "Event not found or not owned by your account." });
+    const user = await db.query("SELECT id, name, email, role FROM users WHERE email = $1", [email]);
+    if (!user.rows.length) return res.status(404).json({ error: "No account exists for that email. Ask the person to register first." });
+    if (user.rows[0].role !== role) return res.status(400).json({ error: `That account's registered role is ${user.rows[0].role}. Choose ${user.rows[0].role} instead.` });
+    await db.query(`INSERT INTO event_memberships (event_id, user_id, role) VALUES ($1, $2, $3)
+      ON CONFLICT (event_id, user_id) DO UPDATE SET role = EXCLUDED.role`, [req.params.id, user.rows[0].id, role]);
+    return res.status(201).json({ message: `${user.rows[0].name} added to the event as ${role}.` });
+  } catch (err) { return error(res, err); }
+});
+
+/* EVENTS */
+
+app.get("/api/events", requireAuth, async (req, res) => {
+  try {
+    let query;
+    let params = [req.user.id];
+    if (req.user.role === "organizer") {
+      query = `SELECT e.* FROM events e WHERE e.organizer_id = $1 ORDER BY e.id`;
+    } else {
+      query = `SELECT e.* FROM events e JOIN event_memberships m ON m.event_id = e.id WHERE m.user_id = $1 AND m.role = $2 ORDER BY e.id`;
+      params = [req.user.id, req.user.role];
+    }
+    res.json((await db.query(query, params)).rows);
+  } catch (err) { error(res, err); }
+});
+
+app.get("/api/events/:id", requireAuth, async (req, res) => {
   try {
     const result = await db.query(
-      "SELECT * FROM events WHERE id = $1",
-      [req.params.id]
+      `SELECT e.* FROM events e WHERE e.id = $1 AND (
+        ( $2 = 'organizer' AND e.organizer_id = $3 ) OR
+        EXISTS (SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $3 AND m.role = $2)
+      )`,
+      [req.params.id, req.user.role, req.user.id]
     );
 
     if (!result.rows.length) {
@@ -90,7 +177,7 @@ app.get("/api/events/:id", async (req, res) => {
   }
 });
 
-app.post("/api/events", async (req, res) => {
+app.post("/api/events", requireAuth, requireRole("organizer"), async (req, res) => {
   try {
     const {
       name,
@@ -107,15 +194,10 @@ app.post("/api/events", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO events
-       (name, description, start_time, end_time)
-       VALUES ($1, $2, $3, $4)
+       (name, description, start_time, end_time, organizer_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [
-        name,
-        description || null,
-        startTime || null,
-        endTime || null,
-      ]
+      [name, description || null, startTime || null, endTime || null, req.user.id]
     );
 
     res.status(201).json(result.rows[0]);
@@ -137,7 +219,7 @@ app.put("/api/events/:id", requireAuth, requireRole("organizer"), async (req, re
            description = COALESCE($2, description),
            start_time = COALESCE($3, start_time),
            end_time = COALESCE($4, end_time)
-       WHERE id = $5
+       WHERE id = $5 AND organizer_id = $6
        RETURNING *`,
       [
         name === undefined ? null : name.trim(),
@@ -145,11 +227,12 @@ app.put("/api/events/:id", requireAuth, requireRole("organizer"), async (req, re
         startTime === undefined ? null : startTime,
         endTime === undefined ? null : endTime,
         req.params.id,
+        req.user.id,
       ]
     );
 
     if (!result.rows.length) {
-      return res.status(404).json({ error: "Event not found" });
+      return res.status(404).json({ error: "Event not found or not owned by your account" });
     }
     return res.json({ message: "Event updated successfully", event: result.rows[0] });
   } catch (err) {
@@ -162,6 +245,12 @@ app.delete("/api/events/:id", requireAuth, requireRole("organizer"), async (req,
 
   try {
     await client.query("BEGIN");
+
+    const ownedEvent = await client.query("SELECT id FROM events WHERE id = $1 AND organizer_id = $2 FOR UPDATE", [req.params.id, req.user.id]);
+    if (!ownedEvent.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Event not found or not owned by your account." });
+    }
 
     await client.query(
       `DELETE FROM tracking_events
@@ -184,8 +273,8 @@ app.delete("/api/events/:id", requireAuth, requireRole("organizer"), async (req,
     );
 
     const result = await client.query(
-      "DELETE FROM events WHERE id = $1 RETURNING *",
-      [req.params.id]
+      "DELETE FROM events WHERE id = $1 AND organizer_id = $2 RETURNING *",
+      [req.params.id, req.user.id]
     );
 
     if (!result.rows.length) {
@@ -212,14 +301,19 @@ app.delete("/api/events/:id", requireAuth, requireRole("organizer"), async (req,
 
 /* ZONES */
 
-app.get("/api/events/:eventId/zones", async (req, res) => {
+app.get("/api/events/:eventId/zones", requireAuth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT *
        FROM zones
-       WHERE event_id = $1
+       WHERE event_id = $1 AND EXISTS (
+         SELECT 1 FROM events e WHERE e.id = zones.event_id AND (
+           (e.organizer_id = $2 AND $3 = 'organizer') OR
+           EXISTS (SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $2 AND m.role = $3)
+         )
+       )
        ORDER BY id`,
-      [req.params.eventId]
+      [req.params.eventId, req.user.id, req.user.role]
     );
 
     res.json(result.rows);
@@ -228,7 +322,7 @@ app.get("/api/events/:eventId/zones", async (req, res) => {
   }
 });
 
-app.post("/api/zones", async (req, res) => {
+app.post("/api/zones", requireAuth, requireRole("organizer"), async (req, res) => {
   try {
     const {
       eventId,
@@ -241,6 +335,9 @@ app.post("/api/zones", async (req, res) => {
         error: "eventId, name and capacity are required",
       });
     }
+
+    const ownedEvent = await db.query("SELECT id FROM events WHERE id = $1 AND organizer_id = $2", [eventId, req.user.id]);
+    if (!ownedEvent.rows.length) return res.status(403).json({ error: "You can only add zones to events you organize." });
 
     const result = await db.query(
       `INSERT INTO zones
@@ -258,7 +355,7 @@ app.post("/api/zones", async (req, res) => {
 
 /* CHECKPOINTS */
 
-app.get("/api/checkpoints", async (req, res) => {
+app.get("/api/checkpoints", requireAuth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT
@@ -266,7 +363,11 @@ app.get("/api/checkpoints", async (req, res) => {
          z.name AS zone_name
        FROM checkpoints c
        JOIN zones z ON c.zone_id = z.id
-       ORDER BY c.id`
+       JOIN events e ON e.id = z.event_id
+       WHERE (e.organizer_id = $1 AND $2 = 'organizer') OR EXISTS (
+         SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $1 AND m.role = $2
+       )
+       ORDER BY c.id`, [req.user.id, req.user.role]
     );
 
     res.json(result.rows);
@@ -275,7 +376,7 @@ app.get("/api/checkpoints", async (req, res) => {
   }
 });
 
-app.post("/api/checkpoints", async (req, res) => {
+app.post("/api/checkpoints", requireAuth, requireRole("organizer"), async (req, res) => {
   try {
     const {
       zoneId,
@@ -289,6 +390,9 @@ app.post("/api/checkpoints", async (req, res) => {
         error: "zoneId, name and direction are required",
       });
     }
+
+    const ownedZone = await db.query(`SELECT z.id FROM zones z JOIN events e ON e.id = z.event_id WHERE z.id = $1 AND e.organizer_id = $2`, [zoneId, req.user.id]);
+    if (!ownedZone.rows.length) return res.status(403).json({ error: "You can only add checkpoints to zones in events you organize." });
 
     const result = await db.query(
       `INSERT INTO checkpoints
@@ -311,11 +415,17 @@ app.post("/api/checkpoints", async (req, res) => {
 
 /* PARTICIPANTS */
 
-app.get("/api/participants", async (req, res) => {
+app.get("/api/participants", requireAuth, async (req, res) => {
   try {
     res.json(
       (await db.query(
-        "SELECT * FROM participants ORDER BY id"
+        `SELECT DISTINCT p.* FROM participants p
+         JOIN tracking_events t ON t.participant_id = p.id
+         JOIN zones z ON z.id = t.zone_id
+         JOIN events e ON e.id = z.event_id
+         WHERE (e.organizer_id = $1 AND $2 = 'organizer') OR EXISTS (
+           SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $1 AND m.role = $2
+         ) ORDER BY p.id`, [req.user.id, req.user.role]
       )).rows
     );
   } catch (err) {
@@ -323,7 +433,7 @@ app.get("/api/participants", async (req, res) => {
   }
 });
 
-app.post("/api/participants", async (req, res) => {
+app.post("/api/participants", requireAuth, requireRole("organizer"), async (req, res) => {
   try {
     const {
       name,
@@ -357,7 +467,7 @@ app.post("/api/participants", async (req, res) => {
 
 /* TRACKING */
 
-app.post("/api/tracking", async (req, res) => {
+app.post("/api/tracking", requireAuth, requireRole("organizer", "staff"), async (req, res) => {
   const client = await db.connect();
 
   try {
@@ -386,6 +496,12 @@ app.post("/api/tracking", async (req, res) => {
     }
 
     await client.query("BEGIN");
+
+    const allowedCheckpoint = await client.query(`SELECT c.id FROM checkpoints c JOIN zones z ON z.id = c.zone_id JOIN events e ON e.id = z.event_id
+      WHERE c.id = $1 AND ((e.organizer_id = $2 AND $3 = 'organizer') OR EXISTS (
+        SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $2 AND m.role = $3
+      ))`, [checkpointId, req.user.id, req.user.role]);
+    if (!allowedCheckpoint.rows.length) { await client.query("ROLLBACK"); return res.status(403).json({ error: "You are not assigned to the event for this checkpoint." }); }
 
     const participant = await client.query(
       `SELECT *
@@ -547,7 +663,7 @@ app.post("/api/tracking", async (req, res) => {
 
 /* TRACKING HISTORY */
 
-app.get("/api/tracking", async (req, res) => {
+app.get("/api/tracking", requireAuth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT
@@ -567,7 +683,11 @@ app.get("/api/tracking", async (req, res) => {
          ON t.checkpoint_id = c.id
        LEFT JOIN zones z
          ON t.zone_id = z.id
-       ORDER BY t.timestamp DESC`
+       JOIN events e ON e.id = z.event_id
+       WHERE (e.organizer_id = $1 AND $2 = 'organizer') OR EXISTS (
+         SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $1 AND m.role = $2
+       )
+       ORDER BY t.timestamp DESC`, [req.user.id, req.user.role]
     );
 
     res.json(result.rows);
@@ -578,9 +698,10 @@ app.get("/api/tracking", async (req, res) => {
 
 /* DASHBOARD */
 
-app.get("/api/dashboard/:eventId", async (req, res) => {
+app.get("/api/dashboard/:eventId", requireAuth, async (req, res) => {
   try {
     const id = req.params.eventId;
+    if (!(await canAccessEvent(req.user, id))) return res.status(403).json({ error: "You are not assigned to this event." });
 
     const zones = await db.query(
       `SELECT *
@@ -658,9 +779,10 @@ app.get("/api/dashboard/:eventId", async (req, res) => {
 
 /* ANALYTICS */
 
-app.get("/api/analytics/:eventId", async (req, res) => {
+app.get("/api/analytics/:eventId", requireAuth, async (req, res) => {
   try {
     const id = req.params.eventId;
+    if (!(await canAccessEvent(req.user, id))) return res.status(403).json({ error: "You are not assigned to this event." });
 
     const stats = await db.query(
       `SELECT
@@ -729,19 +851,19 @@ app.get("/api/analytics/:eventId", async (req, res) => {
 
 /* ALERTS */
 
-app.get("/api/alerts", async (req, res) => {
+app.get("/api/alerts", requireAuth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT DISTINCT ON (a.zone_id)
          a.*,
          z.name AS zone_name
        FROM alerts a
-       JOIN zones z
-         ON a.zone_id = z.id
-       WHERE a.resolved = FALSE
-       ORDER BY
-         a.zone_id,
-         a.created_at DESC`
+       JOIN zones z ON a.zone_id = z.id
+       JOIN events e ON e.id = z.event_id
+       WHERE a.resolved = FALSE AND ((e.organizer_id = $1 AND $2 = 'organizer') OR EXISTS (
+         SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $1 AND m.role = $2
+       ))
+       ORDER BY a.zone_id, a.created_at DESC`, [req.user.id, req.user.role]
     );
 
     res.json(result.rows);
