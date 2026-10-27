@@ -84,7 +84,12 @@ async function canAccessEvent(user, eventId) {
 }
 
 /* BASIC */
-
+app.get("/api/instance-check", (req, res) => {
+  res.json({
+    instance: require("os").hostname(),
+    timestamp: new Date().toISOString()
+  });
+});
 app.get("/", (req, res) =>
   res.json({
     message: "Event Crowd Management API",
@@ -874,8 +879,8 @@ app.get("/api/alerts", requireAuth, async (req, res) => {
 
 /* START SERVER */
 
-server.listen(PORT, () =>
+server.listen(PORT, "0.0.0.0", () =>
   console.log(
-    `Server running on http://localhost:${PORT}`
+    `Server running on port ${PORT}`
   )
 );
