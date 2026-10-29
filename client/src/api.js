@@ -1,6 +1,6 @@
+
 export const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export const SOCKET_URL = API_URL.replace(/\/api\/?$/, "");
 
@@ -30,6 +30,7 @@ async function request(endpoint, options = {}) {
 
   const text = await response.text();
   let data = {};
+
   if (text) {
     try {
       data = JSON.parse(text);
@@ -39,10 +40,15 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    if (response.status === 401 && token && !endpoint.startsWith("/auth/")) {
+    if (
+      response.status === 401 &&
+      token &&
+      !endpoint.startsWith("/auth/")
+    ) {
       clearStoredAuth();
       window.dispatchEvent(new CustomEvent("da3:unauthorized"));
     }
+
     throw new Error(data.error || "API request failed");
   }
 
@@ -58,12 +64,30 @@ export const bootstrapAccount = (account) =>
   });
 
 export const registerAccount = (account) =>
-  request("/auth/register", { method: "POST", body: JSON.stringify(account) });
+  request("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(account),
+  });
 
 export const getAccount = () => request("/account");
 
+export const updateAccountDetails = (account) =>
+  request("/account", {
+    method: "PUT",
+    body: JSON.stringify({
+      name: account.name,
+      email: account.email,
+      currentPassword: account.currentPassword,
+    }),
+  });
+
+export const updateAccount = updateAccountDetails;
+
 export const addEventMember = (eventId, member) =>
-  request(`/events/${eventId}/members`, { method: "POST", body: JSON.stringify(member) });
+  request(`/events/${eventId}/members`, {
+    method: "POST",
+    body: JSON.stringify(member),
+  });
 
 export const login = (credentials) =>
   request("/auth/login", {
@@ -104,7 +128,8 @@ export const createEvent = (event) =>
 export const deleteEvent = (id) =>
   request(`/events/${id}`, { method: "DELETE" });
 
-export const getZones = (eventId) => request(`/events/${eventId}/zones`);
+export const getZones = (eventId) =>
+  request(`/events/${eventId}/zones`);
 
 export const createZone = (zone) =>
   request("/zones", {
@@ -150,8 +175,10 @@ export const recordTrackingEvent = (event) =>
 
 export const getTrackingEvents = () => request("/tracking");
 
-export const getDashboard = (eventId) => request(`/dashboard/${eventId}`);
+export const getDashboard = (eventId) =>
+  request(`/dashboard/${eventId}`);
 
-export const getAnalytics = (eventId) => request(`/analytics/${eventId}`);
+export const getAnalytics = (eventId) =>
+  request(`/analytics/${eventId}`);
 
 export const getAlerts = () => request("/alerts");

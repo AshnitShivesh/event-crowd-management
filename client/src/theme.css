@@ -1,0 +1,510 @@
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --navy: #d1d5db;
+  --navy-light: #e5e7eb;
+  --blue: #3159a8;
+  --blue-light: #dbe5f8;
+  --purple: #7155a5;
+  --orange: #a86217;
+  --green: #246b49;
+  --red: #b83232;
+  --yellow: #8b6a08;
+
+  --text: #374151;
+  --heading: #202938;
+  --muted: #596579;
+  --light-muted: #687386;
+  --border: #a5acb7;
+  --surface: #bfc4cc;
+  --surface-raised: #f3f4f6;
+  --surface-soft: #d6dae0;
+  --background: #e5e7eb;
+
+  --theme-header: #d1d5db;
+  --theme-input: #f9fafb;
+  --theme-table-header: #d1d5db;
+  --theme-table-row: #bfc4cc;
+  --theme-table-hover: #d5d9df;
+  --theme-progress: #9ca3af;
+  --theme-subtle: #e5e7eb;
+  --theme-shadow: 0 3px 12px rgb(31 41 55 / 6%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --navy: #111827;
+  --navy-light: #172033;
+  --blue: #3b82f6;
+  --blue-light: #172554;
+  --purple: #8b5cf6;
+  --orange: #f59e0b;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+
+  --text: #e5e7eb;
+  --heading: #f8fafc;
+  --muted: #94a3b8;
+  --light-muted: #64748b;
+  --border: #263142;
+  --surface: #121821;
+  --surface-raised: #171e29;
+  --surface-soft: #0f151d;
+  --background: #0b0f14;
+
+  --theme-header: #11161f;
+  --theme-input: #0d131b;
+  --theme-table-header: #171e29;
+  --theme-table-row: #121821;
+  --theme-table-hover: #151d28;
+  --theme-progress: #293443;
+  --theme-subtle: #202a38;
+  --theme-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+}
+
+:root[data-theme] {
+  background: var(--background);
+  color: var(--text);
+}
+
+:root[data-theme] body {
+  background: var(--background);
+  color: var(--text);
+  transition: background 160ms ease, color 160ms ease;
+}
+
+:root[data-theme] .app {
+  background: var(--background);
+  color: var(--text);
+}
+
+:root[data-theme] .app-header {
+  background: var(--theme-header);
+  color: var(--heading);
+  border-color: var(--border);
+}
+
+:root[data-theme] .app-header h1,
+:root[data-theme] .app-header h2,
+:root[data-theme] .brand h1 {
+  color: var(--heading);
+}
+
+:root[data-theme] .app-header p,
+:root[data-theme] .brand p {
+  color: var(--muted);
+}
+
+:root[data-theme] main > section,
+:root[data-theme] .hero-card,
+:root[data-theme] .tracking-section {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--theme-shadow);
+}
+
+:root[data-theme] .setup-card,
+:root[data-theme] .demo-panel {
+  background: var(--surface-soft);
+  border-color: var(--border);
+}
+
+:root[data-theme] .stat-card,
+:root[data-theme] .zone-card,
+:root[data-theme] .analytics-card {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+:root[data-theme] .stat-card:hover {
+  border-color: var(--blue);
+}
+
+:root[data-theme] .stat-top > span,
+:root[data-theme] .analytics-card > span,
+:root[data-theme] .zone-card-top span:not(.status-badge) {
+  color: var(--muted);
+}
+
+:root[data-theme] .stat-card strong,
+:root[data-theme] .analytics-card strong,
+:root[data-theme] .zone-number strong,
+:root[data-theme] .zone-footer strong,
+:root[data-theme] .zone-card h3,
+:root[data-theme] .section-heading h2,
+:root[data-theme] section h2,
+:root[data-theme] .hero-card h2,
+:root[data-theme] .form-title h3,
+:root[data-theme] .demo-panel h3 {
+  color: var(--heading);
+}
+
+:root[data-theme] .stat-card p,
+:root[data-theme] .analytics-card small,
+:root[data-theme] .zone-number span,
+:root[data-theme] .zone-footer,
+:root[data-theme] .hero-card p,
+:root[data-theme] .demo-panel p,
+:root[data-theme] .form-title p,
+:root[data-theme] .eyebrow,
+:root[data-theme] .section-count {
+  color: var(--muted);
+}
+
+:root[data-theme] input,
+:root[data-theme] select,
+:root[data-theme] textarea {
+  border-color: var(--border);
+  background: var(--theme-input);
+  color: var(--text);
+}
+
+:root[data-theme] select option {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+:root[data-theme] input::placeholder,
+:root[data-theme] textarea::placeholder {
+  color: var(--light-muted);
+}
+
+:root[data-theme] input:focus,
+:root[data-theme] select:focus,
+:root[data-theme] textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 18%, transparent);
+}
+
+:root[data-theme] .mode-buttons,
+:root[data-theme] .simulation-mode-buttons {
+  background: var(--surface-soft);
+  border-color: var(--border);
+}
+
+:root[data-theme] .mode-btn,
+:root[data-theme] .simulation-mode {
+  color: var(--muted);
+}
+
+:root[data-theme] .mode-btn:hover,
+:root[data-theme] .simulation-mode:hover {
+  background: var(--theme-subtle);
+  color: var(--heading);
+}
+
+:root[data-theme] .mode-btn.active.live {
+  background: #15803d;
+  color: #fff;
+}
+
+:root[data-theme] .mode-btn.active.demo,
+:root[data-theme] .simulation-mode.active {
+  background: var(--blue);
+  color: #fff;
+}
+
+:root[data-theme] .stat-icon,
+:root[data-theme] .source-badge {
+  background: var(--theme-subtle);
+  color: var(--muted);
+}
+
+:root[data-theme] .mini-progress,
+:root[data-theme] .zone-progress {
+  background: var(--theme-progress);
+}
+
+:root[data-theme] .table-container {
+  border-color: var(--border);
+}
+
+:root[data-theme] table {
+  color: var(--text);
+}
+
+:root[data-theme] th {
+  background: var(--theme-table-header);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+:root[data-theme] td {
+  background: var(--theme-table-row);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme] td strong {
+  color: var(--heading);
+}
+
+:root[data-theme] tbody tr:hover td {
+  background: var(--theme-table-hover);
+}
+
+:root[data-theme] .empty-state {
+  border-color: var(--border);
+  background: var(--surface-raised);
+}
+
+:root[data-theme] .empty-state h3 {
+  color: var(--heading);
+}
+
+:root[data-theme] .empty-state p {
+  color: var(--muted);
+}
+
+:root[data-theme] .loading-card {
+  background: var(--surface);
+}
+
+:root[data-theme] .spinner {
+  border-color: var(--border);
+  border-top-color: var(--blue);
+}
+
+:root[data-theme] .message.success {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--green) 40%, var(--border));
+}
+
+:root[data-theme] .message.error {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 9%, var(--surface));
+  border-color: color-mix(in srgb, var(--red) 40%, var(--border));
+}
+
+:root[data-theme] .no-alerts {
+  border-color: color-mix(in srgb, var(--green) 40%, var(--border));
+  background: color-mix(in srgb, var(--green) 9%, var(--surface));
+}
+
+:root[data-theme] .no-alerts strong,
+:root[data-theme] .check-icon {
+  color: var(--green);
+}
+
+:root[data-theme] .check-icon {
+  background: color-mix(in srgb, var(--green) 16%, var(--surface));
+}
+
+:root[data-theme] .alert-count {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+}
+
+:root[data-theme] .alert-item.warning {
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface));
+}
+
+:root[data-theme] .alert-item.warning .alert-symbol {
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 18%, var(--surface));
+}
+
+:root[data-theme] .alert-item.high {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 9%, var(--surface));
+}
+
+:root[data-theme] .alert-item.high .alert-symbol {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 16%, var(--surface));
+}
+
+:root[data-theme] .alert-item.critical {
+  color: var(--heading);
+  background: color-mix(in srgb, var(--red) 24%, var(--surface));
+}
+
+:root[data-theme] .direction-badge.entry {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 13%, var(--surface));
+}
+
+:root[data-theme] .direction-badge.exit {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 13%, var(--surface));
+}
+
+:root[data-theme] .source-badge {
+  background: var(--theme-subtle);
+  color: var(--muted);
+}
+
+:root[data-theme] .status-badge.normal {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+}
+
+:root[data-theme] .status-badge.warning {
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 14%, var(--surface));
+}
+
+:root[data-theme] .status-badge.high {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+}
+
+:root[data-theme] .status-badge.critical {
+  color: #fff;
+  background: #991b1b;
+}
+
+:root[data-theme] .delete-event-btn {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 55%, var(--border));
+}
+
+:root[data-theme] .delete-event-btn:hover {
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+  border-color: var(--red);
+}
+
+:root[data-theme] footer {
+  color: var(--muted);
+}
+
+:root[data-theme] .auth-screen {
+  background: var(--background);
+}
+
+:root[data-theme] .auth-card {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--theme-shadow);
+}
+
+:root[data-theme] .auth-card h1 {
+  color: var(--heading);
+}
+
+:root[data-theme] .auth-card > p,
+:root[data-theme] .auth-description,
+:root[data-theme] .auth-footer,
+:root[data-theme] .auth-hint {
+  color: var(--muted);
+}
+
+:root[data-theme] .auth-form label {
+  color: var(--text);
+}
+
+:root[data-theme] .auth-form input {
+  background: var(--theme-input);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme] .auth-secondary-button {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+:root[data-theme] .auth-secondary-button:hover {
+  background: var(--theme-subtle);
+}
+
+:root[data-theme] .auth-session-bar {
+  background: var(--theme-header);
+  border-color: var(--border);
+}
+
+:root[data-theme] .auth-session-bar strong {
+  color: var(--heading);
+}
+
+:root[data-theme] .auth-session-email {
+  color: var(--muted);
+}
+
+:root[data-theme] .auth-logout-button {
+  color: var(--text);
+  background: var(--surface-raised);
+  border-color: var(--border);
+}
+
+:root[data-theme] .auth-logout-button:hover {
+  background: var(--theme-subtle);
+}
+
+:root[data-theme] .auth-qr-wrap {
+  background: #fff;
+}
+
+:root[data-theme] .auth-qr-wrap p {
+  color: #334155;
+}
+
+:root[data-theme] .auth-spinner {
+  border-color: var(--border);
+  border-top-color: var(--blue);
+}
+
+:root[data-theme] .workspace-dashboard .app {
+  background: var(--background);
+}
+
+:root[data-theme] .workspace-dashboard section {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:root[data-theme] .workspace-dashboard .app-header {
+  background: var(--theme-header);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-section,
+:root[data-theme] .workspace-dashboard .workspace-form-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-event-card,
+:root[data-theme] .workspace-dashboard .workspace-summary-card {
+  background: var(--surface-raised);
+  border-color: var(--border);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-nav {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-nav button {
+  color: var(--text);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-nav button.active {
+  background: var(--surface-raised);
+  color: var(--blue);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-message {
+  color: var(--text);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-message.error {
+  color: var(--red);
+}
+
+:root[data-theme] .workspace-dashboard .workspace-message.success {
+  color: var(--green);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme] *,
+  :root[data-theme] *::before,
+  :root[data-theme] *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
