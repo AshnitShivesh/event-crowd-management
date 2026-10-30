@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const db = require("./db");
@@ -65,12 +66,31 @@ io.use(async (socket, next) => {
 io.on("connection", socket => {
   console.log("Dashboard connected:", socket.id);
 
+  socket.on("event:join", async (eventIdValue) => {
+    const eventId = Number(eventIdValue);
+    if (!Number.isInteger(eventId) || eventId <= 0) return;
+    try {
+      if (!(await canAccessEvent(socket.data.user, eventId))) return;
+      for (const room of socket.rooms) {
+        if (room.startsWith("event:")) socket.leave(room);
+      }
+      socket.join(`event:${eventId}`);
+    } catch (err) {
+      console.error("Socket event join failed:", err.message);
+    }
+  });
+
   socket.on("disconnect", () =>
     console.log("Dashboard disconnected:", socket.id)
   );
 });
 
-const error = (res, err) => res.status(500).json({ error: err.message });
+const error = (res, err) => {
+  console.error("API request failed:", err.message);
+  if (err.code === "23505") return res.status(409).json({ error: "A record with those details already exists." });
+  if (err.code === "23503") return res.status(400).json({ error: "The request references a record that does not exist." });
+  return res.status(500).json({ error: "An unexpected server error occurred." });
+};
 
 async function canAccessEvent(user, eventId) {
   const result = await db.query(
@@ -126,6 +146,40 @@ app.get("/api/account", requireAuth, async (req, res) => {
     }
     return res.json({ user: userResult.rows[0], events: eventsResult.rows });
   } catch (err) { return error(res, err); }
+});
+
+
+app.put("/api/account", requireAuth, async (req, res) => {
+  try {
+    const name = String(req.body?.name || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const currentPassword = String(req.body?.currentPassword || "");
+    if (!name || name.length > 100) {
+      return res.status(400).json({ error: "Name is required and must be 100 characters or fewer." });
+    }
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "Enter a valid email address." });
+    }
+    if (!currentPassword) {
+      return res.status(400).json({ error: "Enter your current password to confirm these changes." });
+    }
+    const existing = await db.query("SELECT id, password_hash FROM users WHERE id = $1", [req.user.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: "Account not found." });
+    if (!(await bcrypt.compare(currentPassword, existing.rows[0].password_hash))) {
+      return res.status(401).json({ error: "Your current password is incorrect." });
+    }
+    const updated = await db.query(
+      `UPDATE users SET name = $1, email = $2
+       WHERE id = $3
+       RETURNING id, name, email, role, created_at, totp_enabled`,
+      [name, email, req.user.id]
+    );
+    return res.json({ message: "Account updated successfully.", user: updated.rows[0] });
+  } catch (err) {
+    if (err.code === "23505") return res.status(409).json({ error: "An account with that email already exists." });
+    console.error("Account update failed:", err.message);
+    return res.status(500).json({ error: "Unable to update account." });
+  }
 });
 
 app.post("/api/events/:id/members", requireAuth, requireRole("organizer"), async (req, res) => {
@@ -422,51 +476,44 @@ app.post("/api/checkpoints", requireAuth, requireRole("organizer"), async (req, 
 
 app.get("/api/participants", requireAuth, async (req, res) => {
   try {
-    res.json(
-      (await db.query(
-        `SELECT DISTINCT p.* FROM participants p
-         JOIN tracking_events t ON t.participant_id = p.id
-         JOIN zones z ON z.id = t.zone_id
-         JOIN events e ON e.id = z.event_id
-         WHERE (e.organizer_id = $1 AND $2 = 'organizer') OR EXISTS (
-           SELECT 1 FROM event_memberships m WHERE m.event_id = e.id AND m.user_id = $1 AND m.role = $2
-         ) ORDER BY p.id`, [req.user.id, req.user.role]
-      )).rows
+    const eventId = Number(req.query.eventId);
+    if (!Number.isInteger(eventId) || eventId <= 0) {
+      return res.status(400).json({ error: "eventId is required to list participants for an event." });
+    }
+    if (!(await canAccessEvent(req.user, eventId))) {
+      return res.status(403).json({ error: "You do not have access to this event." });
+    }
+    const result = await db.query(
+      `SELECT p.* FROM participants p WHERE p.event_id = $1 ORDER BY p.id`,
+      [eventId]
     );
+    return res.json(result.rows);
   } catch (err) {
-    error(res, err);
+    return error(res, err);
   }
 });
 
 app.post("/api/participants", requireAuth, requireRole("organizer"), async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      token,
-    } = req.body;
-
-    if (!name || !token) {
-      return res.status(400).json({
-        error: "name and token are required",
-      });
+    const name = String(req.body?.name || "").trim();
+    const email = String(req.body?.email || "").trim() || null;
+    const token = String(req.body?.token || "").trim();
+    const eventId = Number(req.body?.eventId);
+    if (!name || !token || !Number.isInteger(eventId) || eventId <= 0) {
+      return res.status(400).json({ error: "name, token and eventId are required." });
     }
-
+    if (!(await canAccessEvent(req.user, eventId))) {
+      return res.status(403).json({ error: "You do not own this event." });
+    }
     const result = await db.query(
-      `INSERT INTO participants
-       (name, email, token)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [
-        name,
-        email || null,
-        token,
-      ]
+      `INSERT INTO participants (name, email, token, event_id)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name, email, token, eventId]
     );
-
-    res.status(201).json(result.rows[0]);
+    return res.status(201).json(result.rows[0]);
   } catch (err) {
-    error(res, err);
+    if (err.code === "23505") return res.status(409).json({ error: "A participant token or email already exists." });
+    return error(res, err);
   }
 });
 
@@ -515,6 +562,17 @@ app.post("/api/tracking", requireAuth, requireRole("organizer", "staff"), async 
       [participantToken]
     );
 
+    const checkpointEventResult = await client.query(
+      `SELECT z.event_id FROM checkpoints c JOIN zones z ON z.id = c.zone_id WHERE c.id = $1`,
+      [checkpointId]
+    );
+    if (!participant.rows.length || !checkpointEventResult.rows.length ||
+        !participant.rows[0].event_id ||
+        Number(participant.rows[0].event_id) !== Number(checkpointEventResult.rows[0].event_id)) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "This participant belongs to a different event or has not been assigned to an event." });
+    }
+
     if (!participant.rows.length) {
       await client.query("ROLLBACK");
 
@@ -528,7 +586,8 @@ app.post("/api/tracking", requireAuth, requireRole("organizer", "staff"), async 
          c.*,
          z.name AS zone_name,
          z.capacity,
-         z.current_occupancy
+         z.current_occupancy,
+         z.event_id
        FROM checkpoints c
        JOIN zones z ON c.zone_id = z.id
        WHERE c.id = $1`,
@@ -652,7 +711,7 @@ app.post("/api/tracking", requireAuth, requireRole("organizer", "staff"), async 
       status,
     };
 
-    io.emit("tracking:update", result);
+    io.to(`event:${zone.event_id}`).emit("tracking:update", result);
 
     res.status(201).json(result);
   } catch (err) {

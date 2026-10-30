@@ -821,3 +821,32 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Refined compact light/dark mode control */
+.workspace-header-actions .theme-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-width: 92px;
+  padding: 0.62rem 0.9rem;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface-raised);
+  color: var(--app-text);
+  font-weight: 650;
+  line-height: 1;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.workspace-header-actions .theme-toggle-button:hover {
+  background: var(--app-surface);
+  border-color: var(--app-accent);
+  transform: translateY(-1px);
+}
+.workspace-header-actions .theme-toggle-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--app-accent) 35%, transparent);
+  outline-offset: 2px;
+}
+.workspace-header-actions .theme-toggle-button span:first-child {
+  font-size: 1.1rem;
+}

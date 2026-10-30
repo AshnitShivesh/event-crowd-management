@@ -65,9 +65,9 @@ function App() {
   const [pageNotice, setPageNotice] = useState("");
   const [dashboardEventId, setDashboardEventId] = useState("");
   const [theme, setTheme] = useState(
-    () => localStorage.getItem("da3_theme") || "light"
+    () => localStorage.getItem("da3_theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
   );
-  const [accountForm, setAccountForm] = useState({ name: "", email: "" });
+  const [accountForm, setAccountForm] = useState({ name: "", email: "", currentPassword: "" });
   const [accountEditing, setAccountEditing] = useState(false);
 
   useEffect(() => {
@@ -134,10 +134,11 @@ function App() {
     setAccountData(details);
 
     if (details?.user) {
-      setAccountForm({
+      setAccountForm((previous) => ({
+        ...previous,
         name: details.user.name || "",
         email: details.user.email || "",
-      });
+      }));
     }
 
     if (!memberForm.eventId && eventList.length) {
@@ -340,6 +341,7 @@ function App() {
       const result = await updateAccountDetails({
         name: accountForm.name.trim(),
         email: accountForm.email.trim(),
+        currentPassword: accountForm.currentPassword,
       });
 
       const updatedUser = result.user || {
@@ -378,6 +380,7 @@ function App() {
     setAccountForm({
       name: accountData?.user?.name || user.name || "",
       email: accountData?.user?.email || user.email || "",
+      currentPassword: "",
     });
   }
 
@@ -687,15 +690,14 @@ function App() {
   }
 
   const activeEvents = events.filter(isActive);
-  const pastEvents = events.filter((event) => !isActive(event));
   const roleLabel =
     { organizer: "Organizer", staff: "Staff", viewer: "Viewer" }[user.role] ||
     user.role;
   const visibleAccountEvents = accountData?.events || [];
 
-  const displayedEvents = tab === "past" ? pastEvents : activeEvents;
-  const eventHeading = tab === "past" ? "Past events" : "Active events";
-  const eventEyebrow = tab === "past" ? "EVENT HISTORY" : "CURRENT EVENTS";
+  const displayedEvents = events;
+  const eventHeading = "Events";
+  const eventEyebrow = "EVENT OVERVIEW";
 
   return (
     <div className="authenticated-app role-workspace">
@@ -720,7 +722,8 @@ function App() {
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
             title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
           >
-            {theme === "light" ? "☾ Dark mode" : "☀ Light mode"}
+            <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
+            <span>{theme === "light" ? "Dark" : "Light"}</span>
           </button>
 
           <button
@@ -739,13 +742,6 @@ function App() {
           onClick={() => setTab("home")}
         >
           Home
-        </button>
-
-        <button
-          className={tab === "past" ? "active" : ""}
-          onClick={() => setTab("past")}
-        >
-          Past events
         </button>
 
         {user.role === "organizer" && (
@@ -787,7 +783,7 @@ function App() {
         </div>
       )}
 
-      {(tab === "home" || tab === "past") && (
+      {tab === "home" && (
         <main className="workspace-content">
           <section className="workspace-section">
             <div className="workspace-section-heading">
@@ -795,12 +791,10 @@ function App() {
                 <span className="auth-eyebrow">{eventEyebrow}</span>
                 <h2>
                   {user.role === "organizer"
-                    ? tab === "past"
-                      ? "Events you organized"
-                      : "Active events you organize"
-                    : tab === "past"
-                      ? "Previously assigned events"
-                      : "Active events you're part of"}
+                    ? "Events you organize"
+                    : user.role === "staff"
+                      ? "Events available to your staff account"
+                      : "Events available to view"}
                 </h2>
               </div>
 
@@ -819,7 +813,7 @@ function App() {
                 {displayedEvents.map((event) => (
                   <article className="workspace-event-card" key={event.id}>
                     <span className="workspace-role-chip">
-                      {tab === "past" ? "Past event" : roleLabel}
+                      {isActive(event) ? roleLabel : "Completed"}
                     </span>
 
                     <h3>{event.name}</h3>
@@ -832,14 +826,10 @@ function App() {
                     </div>
 
                     <button
-                      className={
-                        tab === "past"
-                          ? "auth-secondary-button"
-                          : "auth-primary-button"
-                      }
+                      className="auth-primary-button"
                       onClick={() => openDashboard(event.id)}
                     >
-                      {tab === "past" ? "View event details" : "Open dashboard"}
+                      {user.role === "viewer" ? "View dashboard" : "Open dashboard"}
                     </button>
                   </article>
                 ))}
@@ -847,22 +837,18 @@ function App() {
             ) : (
               <div className="workspace-empty">
                 <h3>
-                  {tab === "past"
-                    ? "No past events"
-                    : user.role === "organizer"
-                      ? "No active events yet"
-                      : "No active events assigned"}
+                  {user.role === "organizer"
+                    ? "No events yet"
+                    : "No events available"}
                 </h3>
 
                 <p>
-                  {tab === "past"
-                    ? "Completed or ended events will appear here."
-                    : user.role === "organizer"
-                      ? "Create an event to start configuring zones, checkpoints and crowd monitoring."
-                      : "Ask an event organizer to add your registered email to an event."}
+                  {user.role === "organizer"
+                    ? "Create an event to start configuring zones, checkpoints and crowd monitoring."
+                    : "Ask an organizer to add your account to an event."}
                 </p>
 
-                {user.role === "organizer" && tab === "home" && (
+                {user.role === "organizer" && (
                   <button
                     className="auth-primary-button"
                     onClick={() => setTab("create")}
@@ -966,6 +952,7 @@ function App() {
                     setAccountForm({
                       name: accountData?.user?.name || user.name || "",
                       email: accountData?.user?.email || user.email || "",
+                      currentPassword: "",
                     });
                     setAccountEditing(true);
                     setPageError("");
@@ -1009,6 +996,22 @@ function App() {
                     required
                   />
                 </label>
+ 
+                <label>
+                  Current password (confirm changes)
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={accountForm.currentPassword}
+                    onChange={(e) =>
+                      setAccountForm({
+                        ...accountForm,
+                        currentPassword: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </label>
 
                 <p className="auth-hint">
                   Role, password and multi-factor authentication settings
@@ -1032,6 +1035,7 @@ function App() {
                       setAccountForm({
                         name: accountData?.user?.name || user.name || "",
                         email: accountData?.user?.email || user.email || "",
+                        currentPassword: "",
                       });
                     }}
                   >

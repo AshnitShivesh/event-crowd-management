@@ -110,16 +110,11 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
   }
 
   async function loadLists() {
-    const [
-      eventsData,
-      checkpointsData,
-      participantsData,
-      trackingData,
-      alertsData,
-    ] = await Promise.all([
-      getEvents(),
+    const eventsData = await getEvents();
+    const activeEventId = selectedEvent || (eventsData.length ? String(eventsData[0].id) : "");
+    const [checkpointsData, participantsData, trackingData, alertsData] = await Promise.all([
       getCheckpoints(),
-      getParticipants(),
+      activeEventId ? getParticipants(activeEventId) : Promise.resolve([]),
       getTrackingEvents(),
       getAlerts(),
     ]);
@@ -147,12 +142,17 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
     if (!selectedEvent) return;
 
     loadEventData(selectedEvent);
+    getParticipants(selectedEvent)
+      .then(setParticipants)
+      .catch((error) => notify(error.message, "error"));
   }, [selectedEvent]);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
       auth: { token: sessionStorage.getItem(TOKEN_KEY) },
     });
+
+    if (selectedEvent) socket.emit("event:join", selectedEvent);
 
     socket.on("tracking:update", async (result) => {
       const zoneId = Number(result?.zone?.id);
@@ -382,6 +382,7 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
     try {
       await createParticipant({
         ...participantForm,
+        eventId: Number(selectedEvent),
         token,
       });
 

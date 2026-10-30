@@ -154,12 +154,16 @@ export const createCheckpoint = (checkpoint) =>
     }),
   });
 
-export const getParticipants = () => request("/participants");
+export const getParticipants = (eventId) =>
+  request(eventId ? `/participants?eventId=${encodeURIComponent(eventId)}` : "/participants");
 
 export const createParticipant = (participant) =>
   request("/participants", {
     method: "POST",
-    body: JSON.stringify(participant),
+    body: JSON.stringify({
+      ...participant,
+      eventId: Number(participant.eventId),
+    }),
   });
 
 export const recordTrackingEvent = (event) =>
