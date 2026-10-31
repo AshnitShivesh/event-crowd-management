@@ -51,6 +51,24 @@ const emptyTracking = {
   direction: "ENTRY",
 };
 
+const SIMULATION_CONFIG = {
+  NORMAL: {
+    interval: 2500,
+    batch: 1,
+    entryChance: 0.65,
+  },
+  REDUCED: {
+    interval: 5000,
+    batch: 1,
+    entryChance: 0.55,
+  },
+  BURST: {
+    interval: 1000,
+    batch: 4,
+    entryChance: 0.9,
+  },
+};
+
 function App({ userRole = "organizer", hideEventCreation = false, initialEventId = "" }) {
   const [events, setEvents] = useState([]);
   const [zones, setZones] = useState([]);
@@ -64,8 +82,7 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
   const [selectedEvent, setSelectedEvent] = useState(() => initialEventId || sessionStorage.getItem("da3_selected_event") || "");
   const [mode, setMode] = useState("LIVE");
   const [simMode, setSimMode] = useState("NORMAL");
-  const [simulationRunning, setSimulationRunning] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -79,7 +96,7 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
   const [trackingForm, setTrackingForm] =
     useState(emptyTracking);
 
-  const simulationStart = useRef(Date.now());
+  const simulationStart = useRef(0);
 
   const notify = (text, type = "success") => {
     setMessage(text);
@@ -131,20 +148,65 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
   }
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
 
-    loadLists()
-      .catch((error) => notify(error.message, "error"))
-      .finally(() => setLoading(false));
-  }, []);
+    (async () => {
+      try {
+        const eventsData = await getEvents();
+        if (cancelled) return;
+        setEvents(eventsData);
+
+        const activeEventId = initialEventId || sessionStorage.getItem("da3_selected_event") || (eventsData.length ? String(eventsData[0].id) : "");
+        const [checkpointsData, participantsData, trackingData, alertsData] = await Promise.all([
+          getCheckpoints(),
+          activeEventId ? getParticipants(activeEventId) : Promise.resolve([]),
+          getTrackingEvents(),
+          getAlerts(),
+        ]);
+
+        if (cancelled) return;
+        setCheckpoints(checkpointsData);
+        setParticipants(participantsData);
+        setTrackingEvents(trackingData);
+        setAlerts(alertsData);
+
+        setSelectedEvent((current) => current || (eventsData.length ? String(eventsData[0].id) : ""));
+      } catch (error) {
+        if (!cancelled) notify(error.message, "error");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialEventId]);
 
   useEffect(() => {
     if (!selectedEvent) return;
+    let cancelled = false;
 
-    loadEventData(selectedEvent);
-    getParticipants(selectedEvent)
-      .then(setParticipants)
-      .catch((error) => notify(error.message, "error"));
+    Promise.all([
+      getZones(selectedEvent),
+      getDashboard(selectedEvent),
+      getAnalytics(selectedEvent),
+      getParticipants(selectedEvent),
+    ])
+      .then(([zonesData, dashboardData, analyticsData, participantsData]) => {
+        if (cancelled) return;
+        setZones(zonesData);
+        setDashboard(dashboardData);
+        setAnalytics(analyticsData);
+        setParticipants(participantsData);
+      })
+      .catch((error) => {
+        if (!cancelled) notify(error.message, "error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedEvent]);
 
   useEffect(() => {
@@ -208,6 +270,12 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
       ),
     [checkpoints, eventZoneIds]
   );
+
+  const isSimulationActive =
+    mode === "DEMO" &&
+    Boolean(selectedEvent) &&
+    eventCheckpoints.length > 0 &&
+    participants.length > 0;
 
   const eventTracking = useMemo(
     () =>
@@ -476,26 +544,6 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
     }
   }
 
-  const simulationConfig = {
-    NORMAL: {
-      interval: 2500,
-      batch: 1,
-      entryChance: 0.65,
-    },
-
-    REDUCED: {
-      interval: 5000,
-      batch: 1,
-      entryChance: 0.55,
-    },
-
-    BURST: {
-      interval: 1000,
-      batch: 4,
-      entryChance: 0.9,
-    },
-  };
-
   async function runSimulationStep() {
     if (
       !eventCheckpoints.length ||
@@ -505,7 +553,7 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
     }
 
     const config =
-      simulationConfig[simMode];
+      SIMULATION_CONFIG[simMode];
 
     let batch = config.batch;
     let entryChance = config.entryChance;
@@ -574,38 +622,27 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
     await refresh();
   }
 
+  const runSimulationStepRef = useRef(runSimulationStep);
+
   useEffect(() => {
-    if (
-      mode !== "DEMO" ||
-      !selectedEvent ||
-      !eventCheckpoints.length ||
-      !participants.length
-    ) {
-      setSimulationRunning(false);
+    runSimulationStepRef.current = runSimulationStep;
+  });
+
+  useEffect(() => {
+    if (!isSimulationActive) {
       return;
     }
 
-    simulationStart.current =
-      Date.now();
+    simulationStart.current = Date.now();
 
-    setSimulationRunning(true);
-
-    const interval = setInterval(
-      runSimulationStep,
-      simulationConfig[simMode].interval
-    );
+    const interval = setInterval(() => {
+      runSimulationStepRef.current?.();
+    }, SIMULATION_CONFIG[simMode].interval);
 
     return () => {
       clearInterval(interval);
-      setSimulationRunning(false);
     };
-  }, [
-    mode,
-    simMode,
-    selectedEvent,
-    eventCheckpoints.length,
-    participants.length,
-  ]);
+  }, [isSimulationActive, simMode]);
 
   function getZoneStatus(zone) {
     const value = zone.capacity
@@ -1712,7 +1749,7 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
 
                     <span
                       className={
-                        simulationRunning
+                        isSimulationActive
                           ? "simulation-dot active"
                           : "simulation-dot"
                       }
@@ -1720,13 +1757,13 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
 
                     <div>
                       <strong>
-                        {simulationRunning
+                        {isSimulationActive
                           ? "SIMULATION ACTIVE"
                           : "SIMULATION PAUSED"}
                       </strong>
 
                       <span>
-                        {simulationRunning
+                        {isSimulationActive
                           ? "Automatic movement is running"
                           : "Add a participant and checkpoint to begin"}
                       </span>

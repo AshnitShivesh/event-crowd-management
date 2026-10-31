@@ -101,7 +101,7 @@ function App() {
           await getEvents();
           if (!active) return;
           setUser(JSON.parse(savedUser));
-        } catch (_) {
+        } catch {
           clearStoredAuth();
         }
       }
@@ -141,17 +141,48 @@ function App() {
       }));
     }
 
-    if (!memberForm.eventId && eventList.length) {
-      setMemberForm((prev) => ({
-        ...prev,
-        eventId: String(eventList[0].id),
-      }));
-    }
+    setMemberForm((prev) => {
+      if (!prev.eventId && eventList.length) {
+        return { ...prev, eventId: String(eventList[0].id) };
+      }
+      return prev;
+    });
   }
 
   useEffect(() => {
     if (!user) return;
-    refreshAccount().catch((err) => setPageError(err.message));
+    let active = true;
+
+    (async () => {
+      try {
+        const [eventList, details] = await Promise.all([getEvents(), getAccount()]);
+        if (!active) return;
+
+        setEvents(eventList);
+        setAccountData(details);
+
+        if (details?.user) {
+          setAccountForm((previous) => ({
+            ...previous,
+            name: details.user.name || "",
+            email: details.user.email || "",
+          }));
+        }
+
+        setMemberForm((prev) => {
+          if (!prev.eventId && eventList.length) {
+            return { ...prev, eventId: String(eventList[0].id) };
+          }
+          return prev;
+        });
+      } catch (err) {
+        if (active) setPageError(err.message);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   function saveSession(result) {
@@ -274,7 +305,7 @@ function App() {
   async function handleLogout() {
     try {
       await logout();
-    } catch (_) {
+    } catch {
       // Clear the local session even if the API is unreachable.
     }
 
@@ -689,14 +720,12 @@ function App() {
     );
   }
 
-  const activeEvents = events.filter(isActive);
   const roleLabel =
     { organizer: "Organizer", staff: "Staff", viewer: "Viewer" }[user.role] ||
     user.role;
   const visibleAccountEvents = accountData?.events || [];
 
   const displayedEvents = events;
-  const eventHeading = "Events";
   const eventEyebrow = "EVENT OVERVIEW";
 
   return (

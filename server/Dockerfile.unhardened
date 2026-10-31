@@ -1,0 +1,24 @@
+# Unhardened Dockerfile (Before Hardening) for DA3 Question 2(c)
+# Demonstrates common vulnerabilities before hardening:
+# 1. Full Debian-based base image (node:20) containing hundreds of unnecessary OS packages, compilers, and utilities.
+# 2. Runs as default root user (UID 0), allowing privilege escalation vulnerabilities.
+# 3. Copies all files and installs full development dependencies without cleanup.
+
+FROM node:20
+
+WORKDIR /app
+
+# Copies all files without non-root permission separation
+COPY package*.json ./
+
+# Installs full dependencies as root
+RUN npm install
+
+COPY . .
+
+ENV PORT=5000
+
+# Runs as root user (vulnerable)
+EXPOSE 5000
+
+CMD ["npm", "start"]

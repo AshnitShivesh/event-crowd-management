@@ -34,7 +34,7 @@ async function request(endpoint, options = {}) {
   if (text) {
     try {
       data = JSON.parse(text);
-    } catch (_) {
+    } catch {
       data = { error: "The server returned an invalid response." };
     }
   }

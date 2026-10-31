@@ -317,6 +317,11 @@ app.delete("/api/events/:id", requireAuth, requireRole("organizer"), async (req,
          SELECT id
          FROM zones
          WHERE event_id = $1
+       )
+       OR participant_id IN (
+         SELECT id
+         FROM participants
+         WHERE event_id = $1
        )`,
       [req.params.id]
     );
@@ -328,6 +333,12 @@ app.delete("/api/events/:id", requireAuth, requireRole("organizer"), async (req,
          FROM zones
          WHERE event_id = $1
        )`,
+      [req.params.id]
+    );
+
+    await client.query(
+      `DELETE FROM participants
+       WHERE event_id = $1`,
       [req.params.id]
     );
 
@@ -351,7 +362,9 @@ app.delete("/api/events/:id", requireAuth, requireRole("organizer"), async (req,
       event: result.rows[0],
     });
   } catch (err) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+    } catch (_) {}
     error(res, err);
   } finally {
     client.release();
@@ -562,23 +575,31 @@ app.post("/api/tracking", requireAuth, requireRole("organizer", "staff"), async 
       [participantToken]
     );
 
+    if (!participant.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        error: "Participant not found",
+      });
+    }
+
     const checkpointEventResult = await client.query(
       `SELECT z.event_id FROM checkpoints c JOIN zones z ON z.id = c.zone_id WHERE c.id = $1`,
       [checkpointId]
     );
-    if (!participant.rows.length || !checkpointEventResult.rows.length ||
-        !participant.rows[0].event_id ||
-        Number(participant.rows[0].event_id) !== Number(checkpointEventResult.rows[0].event_id)) {
+
+    if (!checkpointEventResult.rows.length) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "This participant belongs to a different event or has not been assigned to an event." });
+      return res.status(404).json({
+        error: "Checkpoint not found",
+      });
     }
 
-    if (!participant.rows.length) {
+    if (
+      !participant.rows[0].event_id ||
+      Number(participant.rows[0].event_id) !== Number(checkpointEventResult.rows[0].event_id)
+    ) {
       await client.query("ROLLBACK");
-
-      return res.status(404).json({
-        error: "Participant not found",
-      });
+      return res.status(409).json({ error: "This participant belongs to a different event or has not been assigned to an event." });
     }
 
     const checkpoint = await client.query(

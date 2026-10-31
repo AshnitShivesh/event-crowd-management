@@ -4,3 +4,6 @@ node_modules/
 !.env.example
 dist/
 build/
+*.dump
+*-backup-*/
+DA3-pre-patch-backup-*
