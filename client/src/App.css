@@ -850,3 +850,956 @@
 .workspace-header-actions .theme-toggle-button span:first-child {
   font-size: 1.1rem;
 }
+
+/* ==========================================================================
+   DA3 UI/UX ENHANCEMENTS & ADVANCED CROWD MANAGEMENT COMPONENTS
+   ========================================================================== */
+
+/* 1. Breadcrumbs & Quick Event Switcher (UI Design 10) */
+.dashboard-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--app-shadow, 0 4px 14px rgba(0, 0, 0, 0.08));
+}
+
+.breadcrumb-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.breadcrumb-btn {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--blue, #3b82f6);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.breadcrumb-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.breadcrumb-separator {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.breadcrumb-item {
+  color: var(--muted);
+}
+
+.breadcrumb-current {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.quick-event-switcher-wrapper {
+  position: relative;
+}
+
+.quick-event-switcher-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--surface-raised, #171e29);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--heading);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-event-switcher-pill:hover {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.event-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: pulse-ring 2s infinite ease-out;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.switcher-arrow {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.quick-event-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 280px;
+  max-width: 340px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  z-index: 100;
+  animation: dropdown-fade-in 0.18s ease-out;
+}
+
+@keyframes dropdown-fade-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-header {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding: 8px 12px 6px;
+}
+
+.dropdown-event-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dropdown-event-item:hover {
+  background: var(--surface);
+}
+
+.dropdown-event-item.current {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.dropdown-event-info strong {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--heading);
+}
+
+.dropdown-event-info span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-check {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+/* 2. Radial Gauge & Overview (UI Design 3 & 9) */
+.live-overview-section {
+  margin-bottom: 28px;
+}
+
+.overview-container-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 18px;
+}
+
+@media (max-width: 900px) {
+  .overview-container-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card.radial-gauge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.card-micro-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.radial-gauge-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radial-gauge-svg {
+  transform: rotate(0deg);
+}
+
+.radial-gauge-bg {
+  fill: none;
+  stroke: var(--surface-soft, rgba(255, 255, 255, 0.08));
+}
+
+.radial-gauge-bar {
+  fill: none;
+  transition: stroke-dashoffset 0.65s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+}
+
+.radial-gauge-content {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.radial-gauge-value {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--heading);
+  line-height: 1.1;
+}
+
+.radial-gauge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.gauge-footer-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 14px;
+}
+
+.stats-grid-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+/* 3. Skeleton Loading Shimmer (UI Design 6) */
+.skeleton-dashboard-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.skeleton-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-hero {
+  height: 90px;
+}
+
+.skeleton-stats-grid,
+.skeleton-zones-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-stat {
+  height: 120px;
+}
+
+.skeleton-zone {
+  height: 160px;
+}
+
+.skeleton-map {
+  height: 320px;
+}
+
+.skeleton-map-canvas {
+  display: flex;
+  gap: 16px;
+  height: 220px;
+}
+
+.skeleton-map-room {
+  flex: 1;
+  background: var(--surface-raised);
+  border-radius: 8px;
+}
+
+.skeleton-line {
+  background: var(--surface-raised, rgba(255, 255, 255, 0.08));
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  animation: shimmer-swipe 1.6s infinite;
+}
+
+@keyframes shimmer-swipe {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 4. Interactive 2D Venue Floor Plan (UI Design 1) */
+.venue-floorplan-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.venue-floorplan-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.venue-floorplan-header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 4px 0 2px;
+}
+
+.venue-floorplan-header p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.filter-pill-group {
+  display: inline-flex;
+  gap: 6px;
+  background: var(--surface-raised);
+  padding: 4px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+
+.filter-pill {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: none;
+  background: none;
+  border-radius: 16px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill.active {
+  background: var(--surface);
+  color: var(--heading);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.filter-pill.alert.active {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.filter-pill.normal.active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.venue-map-viewport {
+  width: 100%;
+  background: var(--surface-soft, #0a0e14);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.venue-map-svg {
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+}
+
+.venue-boundary {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.venue-compass-text {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  fill: var(--muted);
+}
+
+.room-group {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.room-group:hover .room-rect {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+}
+
+.room-dimmed {
+  opacity: 0.28;
+}
+
+.room-selected .room-rect {
+  stroke-width: 3.5;
+  stroke-dasharray: none;
+  animation: room-selected-pulse 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes room-selected-pulse {
+  from { filter: drop-shadow(0 0 6px currentColor); }
+  to { filter: drop-shadow(0 0 14px currentColor); }
+}
+
+.room-title {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--heading);
+}
+
+.room-status-badge-text {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.room-metric-count {
+  font-size: 20px;
+  font-weight: 800;
+  fill: var(--heading);
+}
+
+.room-metric-total {
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--muted);
+}
+
+.room-sub-label {
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--muted);
+}
+
+.door-pin-text {
+  font-size: 8.5px;
+  font-weight: 700;
+  fill: var(--heading);
+}
+
+.zone-inspector-tray {
+  margin-top: 14px;
+  padding: 14px 18px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  animation: inspector-slide-up 0.2s ease-out;
+}
+
+@keyframes inspector-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.inspector-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  color: var(--blue);
+  text-transform: uppercase;
+}
+
+.inspector-left h4 {
+  margin: 2px 0 3px;
+  font-size: 1.05rem;
+  color: var(--heading);
+}
+
+.inspector-left p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.inspector-checkpoints {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.inspector-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gate-pill {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.gate-pill.entry {
+  background: rgba(34, 197, 94, 0.18);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.gate-pill.exit {
+  background: rgba(59, 130, 246, 0.18);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.inspector-close-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inspector-close-btn:hover {
+  background: var(--surface);
+  color: var(--heading);
+}
+
+/* 6. Staff Role Scanner Terminal (UI Design 4) */
+.staff-scanner-terminal-card {
+  background: var(--surface);
+  border: 2px solid var(--blue);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
+}
+
+.terminal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.terminal-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: rgba(59, 130, 246, 0.18);
+  color: #3b82f6;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.terminal-header h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--heading);
+}
+
+.terminal-header p {
+  margin: 3px 0 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.direction-toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.direction-toggle-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.direction-toggle-btn.entry.active {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.direction-toggle-btn.exit.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+}
+
+.terminal-inputs-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.terminal-input-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.terminal-input-block.grow {
+  flex: 1;
+  min-width: 260px;
+}
+
+.terminal-input-block label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.terminal-select,
+.terminal-text-input {
+  padding: 11px 14px;
+  font-size: 0.95rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--heading);
+  outline: none;
+}
+
+.terminal-select:focus,
+.terminal-text-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.token-input-wrapper {
+  display: flex;
+  gap: 10px;
+}
+
+.token-input-wrapper .terminal-text-input {
+  flex: 1;
+}
+
+.terminal-scan-action-btn {
+  padding: 11px 22px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.terminal-scan-action-btn.entry {
+  background: #22c55e;
+}
+
+.terminal-scan-action-btn.entry:hover:not(:disabled) {
+  background: #16a34a;
+  transform: translateY(-1px);
+}
+
+.terminal-scan-action-btn.exit {
+  background: #3b82f6;
+}
+
+.terminal-scan-action-btn.exit:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.terminal-scan-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quick-token-chips {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.chips-label {
+  font-size: 0.74rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.chips-scroll {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.token-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.token-chip:hover {
+  background: var(--surface);
+  border-color: var(--blue);
+  color: var(--heading);
+}
+
+.token-chip.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: var(--heading);
+}
+
+.chip-name {
+  font-weight: 600;
+}
+
+.chip-token {
+  font-family: monospace;
+  opacity: 0.75;
+}
+
+.scan-feedback-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-top: 14px;
+  animation: feedback-pop 0.2s ease-out;
+}
+
+@keyframes feedback-pop {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.scan-feedback-banner.success {
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #22c55e;
+}
+
+.scan-feedback-banner.error {
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.feedback-icon {
+  font-size: 1.25rem;
+}
+
+.feedback-body {
+  flex: 1;
+  font-size: 0.86rem;
+}
+
+.feedback-body strong {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.feedback-time {
+  font-size: 0.74rem;
+  opacity: 0.75;
+}
+
+/* 7. Color-Blind Accessible Density Indicators & Progress Tracks (UI Design 9 & 3) */
+.badge-geo-icon {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 0.85em;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-badge.critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+
+.status-badge.high {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.45);
+}
+
+.status-badge.warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.status-badge.normal {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+}
+
+.zone-progress-wrapper {
+  margin: 10px 0;
+}
+
+.zone-progress {
+  position: relative;
+  height: 8px;
+  background: var(--surface-soft, rgba(255, 255, 255, 0.08));
+  border-radius: 4px;
+  overflow: visible;
+}
+
+.zone-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.zone-progress-fill.normal { background: #22c55e; }
+.zone-progress-fill.warning { background: #f59e0b; }
+.zone-progress-fill.high { background: #f97316; }
+.zone-progress-fill.critical { background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+
+.threshold-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.4);
+  z-index: 2;
+}
+
+.threshold-marker.mark-70 { left: 70%; }
+.threshold-marker.mark-90 { left: 90%; }
+
+.zone-progress-indicators {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.indicator-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.zone-card-focused {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}

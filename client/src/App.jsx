@@ -1242,6 +1242,8 @@ function App() {
             userRole={user.role}
             hideEventCreation
             initialEventId={dashboardEventId}
+            onBackToHome={() => setTab("home")}
+            onSelectEventId={(id) => setDashboardEventId(String(id))}
           />
         </div>
       )}

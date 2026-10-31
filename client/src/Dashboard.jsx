@@ -19,6 +19,11 @@ import {
   TOKEN_KEY,
 } from "./api";
 import "./index.css";
+import RadialGauge from "./components/RadialGauge";
+import { getStatusMeta } from "./components/densityMeta";
+import SkeletonLoader from "./components/SkeletonLoader";
+import VenueFloorPlan from "./components/VenueFloorPlan";
+import RoleScannerTerminal from "./components/RoleScannerTerminal";
 
 const emptyEvent = {
   name: "",
@@ -69,7 +74,13 @@ const SIMULATION_CONFIG = {
   },
 };
 
-function App({ userRole = "organizer", hideEventCreation = false, initialEventId = "" }) {
+function App({
+  userRole = "organizer",
+  hideEventCreation = false,
+  initialEventId = "",
+  onBackToHome,
+  onSelectEventId,
+}) {
   const [events, setEvents] = useState([]);
   const [zones, setZones] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
@@ -80,9 +91,20 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
   const [analytics, setAnalytics] = useState(null);
 
   const [selectedEvent, setSelectedEvent] = useState(() => initialEventId || sessionStorage.getItem("da3_selected_event") || "");
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
+  const [eventSwitcherOpen, setEventSwitcherOpen] = useState(false);
   const [mode, setMode] = useState("LIVE");
   const [simMode, setSimMode] = useState("NORMAL");
   const [loading, setLoading] = useState(true);
+
+  function handleSelectEvent(id) {
+    const strId = String(id);
+    setSelectedEvent(strId);
+    setSelectedZoneId(null);
+    setEventSwitcherOpen(false);
+    sessionStorage.setItem("da3_selected_event", strId);
+    if (onSelectEventId) onSelectEventId(strId);
+  }
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -751,6 +773,66 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
       </header>
 
       <main>
+        {/* BREADCRUMB & QUICK EVENT SWITCHER (UI Design 10) */}
+        <nav className="dashboard-breadcrumb-bar" aria-label="Breadcrumb navigation">
+          <div className="breadcrumb-links">
+            {onBackToHome && (
+              <>
+                <button type="button" className="breadcrumb-btn" onClick={onBackToHome}>
+                  🏠 Home
+                </button>
+                <span className="breadcrumb-separator" aria-hidden="true">/</span>
+              </>
+            )}
+            <span className="breadcrumb-item">Events</span>
+            <span className="breadcrumb-separator" aria-hidden="true">/</span>
+            <span className="breadcrumb-current">
+              {selectedEventObject?.name || "Active Event"}
+            </span>
+          </div>
+
+          <div className="quick-event-switcher-wrapper">
+            <button
+              type="button"
+              className="quick-event-switcher-pill"
+              onClick={() => setEventSwitcherOpen((prev) => !prev)}
+              aria-expanded={eventSwitcherOpen}
+              aria-label="Switch monitored event"
+            >
+              <span className="event-live-dot" aria-hidden="true"></span>
+              <span className="switcher-event-name">
+                {selectedEventObject ? selectedEventObject.name : "Select Event"}
+              </span>
+              <span className="switcher-arrow" aria-hidden="true">▾</span>
+            </button>
+
+            {eventSwitcherOpen && (
+              <div className="quick-event-dropdown" role="menu">
+                <div className="dropdown-header">SWITCH MONITORED EVENT</div>
+                {events.map((ev) => {
+                  const isCurrent = String(ev.id) === String(selectedEvent);
+                  return (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      className={`dropdown-event-item ${isCurrent ? "current" : ""}`}
+                      onClick={() => handleSelectEvent(ev.id)}
+                    >
+                      <div className="dropdown-event-info">
+                        <strong>{ev.name}</strong>
+                        <span>{ev.description || "Monitored crowd event"}</span>
+                      </div>
+                      {isCurrent && <span className="dropdown-check">✓ Active</span>}
+                    </button>
+                  );
+                })}
+                {events.length === 0 && (
+                  <div className="dropdown-empty">No other events found</div>
+                )}
+              </div>
+            )}
+          </div>
+        </nav>
 
         {/* MESSAGE */}
         {message && (
@@ -797,9 +879,7 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
             <select
               value={selectedEvent}
               onChange={(e) =>
-                setSelectedEvent(
-                  e.target.value
-                )
+                handleSelectEvent(e.target.value)
               }
             >
               <option value="">
@@ -824,21 +904,22 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
         </section>
 
         {loading ? (
-
-          <section className="loading-card">
-            <div className="spinner"></div>
-            <p>
-              Loading event data...
-            </p>
-          </section>
-
+          <SkeletonLoader />
         ) : (
 
           <>
+            {/* STAFF SCAN TERMINAL (Item 4: Role-Based Staff View) */}
+            {selectedEvent && userRole === "staff" && (
+              <RoleScannerTerminal
+                checkpoints={eventCheckpoints}
+                participants={participants}
+                onRecordScan={recordTrackingEvent}
+              />
+            )}
 
-            {/* OVERVIEW */}
+            {/* OVERVIEW WITH CIRCULAR RADIAL GAUGE (UI Design 3 & 9) */}
             {selectedEvent && (
-              <section>
+              <section className="live-overview-section">
 
                 <div className="section-heading">
                   <div>
@@ -857,99 +938,131 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
                   </div>
                 </div>
 
-                <div className="stats-grid">
-
-                  <div className="stat-card blue">
-                    <div className="stat-top">
-                      <span>
-                        Total Capacity
-                      </span>
-
-                      <div className="stat-icon">
-                        CAP
-                      </div>
-                    </div>
-
-                    <strong>
-                      {totalCapacity.toLocaleString()}
-                    </strong>
-
-                    <p>
-                      Across all monitored zones
-                    </p>
-                  </div>
-
-                  <div className="stat-card purple">
-                    <div className="stat-top">
-                      <span>
-                        Current Occupancy
-                      </span>
-
-                      <div className="stat-icon">
-                        OCC
-                      </div>
-                    </div>
-
-                    <strong>
-                      {totalOccupancy.toLocaleString()}
-                    </strong>
-
-                    <p>
-                      People currently inside
-                    </p>
-                  </div>
-
-                  <div className="stat-card orange">
-                    <div className="stat-top">
-                      <span>
-                        Utilization
-                      </span>
-
-                      <div className="stat-icon">
-                        %
-                      </div>
-                    </div>
-
-                    <strong>
-                      {utilization}%
-                    </strong>
-
-                    <div className="mini-progress">
-                      <div
-                        style={{
-                          width: `${Math.min(
-                            utilization,
-                            100
-                          )}%`,
-                        }}
-                      ></div>
+                <div className="overview-container-grid">
+                  {/* Radial Gauge Card (Item 3 & Item 9) */}
+                  <div className="stat-card radial-gauge-card">
+                    <span className="card-micro-label">OVERALL CAPACITY</span>
+                    <RadialGauge
+                      value={utilization}
+                      size={135}
+                      strokeWidth={10}
+                      status={
+                        utilization >= 100
+                          ? "CRITICAL"
+                          : utilization >= 90
+                          ? "HIGH"
+                          : utilization >= 70
+                          ? "WARNING"
+                          : "NORMAL"
+                      }
+                    />
+                    <div className="gauge-footer-note">
+                      <span>{totalOccupancy.toLocaleString()} of {totalCapacity.toLocaleString()} max</span>
                     </div>
                   </div>
 
-                  <div className="stat-card red">
-                    <div className="stat-top">
-                      <span>
-                        Active Alerts
-                      </span>
+                  <div className="stats-grid-inner">
+                    <div className="stat-card blue">
+                      <div className="stat-top">
+                        <span>
+                          Total Capacity
+                        </span>
 
-                      <div className="stat-icon">
-                        !
+                        <div className="stat-icon" aria-hidden="true">
+                          CAP
+                        </div>
+                      </div>
+
+                      <strong>
+                        {totalCapacity.toLocaleString()}
+                      </strong>
+
+                      <p>
+                        Across all monitored zones
+                      </p>
+                    </div>
+
+                    <div className="stat-card purple">
+                      <div className="stat-top">
+                        <span>
+                          Current Occupancy
+                        </span>
+
+                        <div className="stat-icon" aria-hidden="true">
+                          OCC
+                        </div>
+                      </div>
+
+                      <strong>
+                        {totalOccupancy.toLocaleString()}
+                      </strong>
+
+                      <p>
+                        People currently inside
+                      </p>
+                    </div>
+
+                    <div className="stat-card orange">
+                      <div className="stat-top">
+                        <span>
+                          Utilization
+                        </span>
+
+                        <div className="stat-icon" aria-hidden="true">
+                          %
+                        </div>
+                      </div>
+
+                      <strong>
+                        {utilization}%
+                      </strong>
+
+                      <div className="mini-progress">
+                        <div
+                          style={{
+                            width: `${Math.min(
+                              utilization,
+                              100
+                            )}%`,
+                          }}
+                        ></div>
                       </div>
                     </div>
 
-                    <strong>
-                      {eventAlerts.length}
-                    </strong>
+                    <div className="stat-card red">
+                      <div className="stat-top">
+                        <span>
+                          Active Alerts
+                        </span>
 
-                    <p>
-                      {eventAlerts.length
-                        ? "Zones require attention"
-                        : "All zones normal"}
-                    </p>
+                        <div className="stat-icon" aria-hidden="true">
+                          !
+                        </div>
+                      </div>
+
+                      <strong>
+                        {eventAlerts.length}
+                      </strong>
+
+                      <p>
+                        {eventAlerts.length
+                          ? `${eventAlerts.length} zones require attention`
+                          : "All zones normal"}
+                      </p>
+                    </div>
                   </div>
-
                 </div>
               </section>
+            )}
+
+            {/* INTERACTIVE 2D VENUE FLOOR PLAN (UI Design 1) */}
+            {selectedEvent && (
+              <VenueFloorPlan
+                zones={zones}
+                checkpoints={eventCheckpoints}
+                selectedZoneId={selectedZoneId}
+                onSelectZone={setSelectedZoneId}
+              />
             )}
 
             {/* ZONES */}
@@ -988,11 +1101,18 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
 
                       const status =
                         getZoneStatus(zone);
+                      const meta = getStatusMeta(status, zoneUtilization);
+                      const isZoneFocused = selectedZoneId && Number(selectedZoneId) === Number(zone.id);
 
                       return (
                         <div
-                          className="zone-card"
+                          className={`zone-card ${isZoneFocused ? "zone-card-focused" : ""}`}
                           key={zone.id}
+                          onClick={() => setSelectedZoneId(isZoneFocused ? null : zone.id)}
+                          style={{ cursor: "pointer" }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Zone ${zone.name}: ${zone.current_occupancy} of ${zone.capacity} (${meta.label})`}
                         >
 
                           <div className="zone-card-top">
@@ -1008,9 +1128,12 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
                             </div>
 
                             <span
-                              className={`status-badge ${status.toLowerCase()}`}
+                              className={`status-badge ${meta.status.toLowerCase()}`}
+                              role="status"
+                              aria-label={meta.ariaLabel}
                             >
-                              {status}
+                              <span className="badge-geo-icon" aria-hidden="true">{meta.icon}</span>
+                              <span>{meta.label}</span>
                             </span>
                           </div>
 
@@ -1024,16 +1147,27 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
                             </span>
                           </div>
 
-                          <div className="zone-progress">
-                            <div
-                              className={`zone-progress-fill ${status.toLowerCase()}`}
-                              style={{
-                                width: `${Math.min(
-                                  zoneUtilization,
-                                  100
-                                )}%`,
-                              }}
-                            ></div>
+                          {/* Multi-tone smooth progress bar with threshold markers (Item 3 & Item 9) */}
+                          <div className="zone-progress-wrapper">
+                            <div className="zone-progress">
+                              <div
+                                className={`zone-progress-fill ${meta.status.toLowerCase()}`}
+                                style={{
+                                  width: `${Math.min(
+                                    zoneUtilization,
+                                    100
+                                  )}%`,
+                                }}
+                              ></div>
+                              <span className="threshold-marker mark-70" title="70% Warning threshold"></span>
+                              <span className="threshold-marker mark-90" title="90% High threshold"></span>
+                            </div>
+                            <div className="zone-progress-indicators">
+                              <span className="indicator-label">0%</span>
+                              <span className="indicator-label">70% ▲</span>
+                              <span className="indicator-label">90% ◆</span>
+                              <span className="indicator-label">100% 🛑</span>
+                            </div>
                           </div>
 
                           <div className="zone-footer">
@@ -1041,8 +1175,8 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
                               Utilization
                             </span>
 
-                            <strong>
-                              {zoneUtilization}%
+                            <strong style={{ color: meta.color }}>
+                              <span className="badge-geo-icon" aria-hidden="true">{meta.icon}</span> {zoneUtilization}%
                             </strong>
                           </div>
 
@@ -1231,8 +1365,9 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
               </section>
             )}
 
-            {/* EVENT SETUP */}
-            <section className="event-setup-section">
+            {/* EVENT SETUP (Organizer Role Exclusive) */}
+            {userRole === "organizer" && (
+              <section className="event-setup-section">
 
               <div className="section-heading">
                 <div>
@@ -1608,8 +1743,10 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
 
               </div>
             </section>
+            )}
 
-            {/* TRACKING */}
+            {/* TRACKING (Hidden in Viewer Executive Kiosk Mode) */}
+            {userRole !== "viewer" && (
             <section className="tracking-section">
 
               <div className="section-heading">
@@ -1775,6 +1912,7 @@ function App({ userRole = "organizer", hideEventCreation = false, initialEventId
               )}
 
             </section>
+            )}
 
             {/* RECENT EVENTS */}
             <section>
