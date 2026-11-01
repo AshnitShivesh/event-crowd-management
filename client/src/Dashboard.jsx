@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import {
   getEvents,
-  createEvent,
   deleteEvent,
   getZones,
   createZone,
@@ -24,13 +23,6 @@ import { getStatusMeta } from "./components/densityMeta";
 import SkeletonLoader from "./components/SkeletonLoader";
 import VenueFloorPlan from "./components/VenueFloorPlan";
 import RoleScannerTerminal from "./components/RoleScannerTerminal";
-
-const emptyEvent = {
-  name: "",
-  description: "",
-  start_time: "",
-  end_time: "",
-};
 
 const emptyZone = {
   name: "",
@@ -93,6 +85,7 @@ function App({
   const [selectedEvent, setSelectedEvent] = useState(() => initialEventId || sessionStorage.getItem("da3_selected_event") || "");
   const [selectedZoneId, setSelectedZoneId] = useState(null);
   const [eventSwitcherOpen, setEventSwitcherOpen] = useState(false);
+  const [activeSetupDrawer, setActiveSetupDrawer] = useState(null);
   const [mode, setMode] = useState("LIVE");
   const [simMode, setSimMode] = useState("NORMAL");
   const [loading, setLoading] = useState(true);
@@ -109,7 +102,6 @@ function App({
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
 
-  const [eventForm, setEventForm] = useState(emptyEvent);
   const [zoneForm, setZoneForm] = useState(emptyZone);
   const [checkpointForm, setCheckpointForm] =
     useState(emptyCheckpoint);
@@ -383,26 +375,6 @@ function App({
     ]);
   }
 
-  async function handleCreateEvent(e) {
-    e.preventDefault();
-
-    try {
-      const created = await createEvent(eventForm);
-
-      setEventForm(emptyEvent);
-
-      const updatedEvents = await getEvents();
-
-      setEvents(updatedEvents);
-      setSelectedEvent(String(created.id));
-
-      await loadEventData(created.id);
-
-      notify("Event created successfully.");
-    } catch (error) {
-      notify(error.message, "error");
-    }
-  }
 
   async function handleCreateZone(e) {
     e.preventDefault();
@@ -427,6 +399,7 @@ function App({
       });
 
       setZoneForm(emptyZone);
+      setActiveSetupDrawer(null);
 
       await refresh();
 
@@ -451,6 +424,7 @@ function App({
       });
 
       setCheckpointForm(emptyCheckpoint);
+      setActiveSetupDrawer(null);
 
       await refresh();
 
@@ -477,6 +451,7 @@ function App({
       });
 
       setParticipantForm(emptyParticipant);
+      setActiveSetupDrawer(null);
 
       await loadLists();
 
@@ -1365,384 +1340,266 @@ function App({
               </section>
             )}
 
-            {/* EVENT SETUP (Organizer Role Exclusive) */}
-            {userRole === "organizer" && (
-              <section className="event-setup-section">
+            {/* VENUE OPERATIONS HUB (Organizer Role Exclusive) */}
+            {userRole === "organizer" && selectedEvent && (
+              <section className="venue-operations-hub">
 
-              <div className="section-heading">
-                <div>
-                  <span className="eyebrow">
-                    CONFIGURATION
-                  </span>
+                <div className="section-heading">
+                  <div>
+                    <span className="eyebrow">
+                      VENUE OPERATIONS
+                    </span>
 
-                  <h2>
-                    Event Setup
-                  </h2>
+                    <h2>
+                      Venue Management Hub
+                    </h2>
+                  </div>
+
+                  <div className="venue-meta-chips">
+                    <span className="meta-chip">📍 {zones.length} {zones.length === 1 ? "Zone" : "Zones"}</span>
+                    <span className="meta-chip">🚪 {eventCheckpoints.length} {eventCheckpoints.length === 1 ? "Gate" : "Gates"}</span>
+                    <span className="meta-chip">🎟️ {participants.length} {participants.length === 1 ? "Attendee" : "Attendees"}</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="form-grid">
-
-                {/* EVENT */}
-                <SetupCard
-                  number="01"
-                  color="blue-bg"
-                  title="Create Event"
-                  text="Set up a new event to monitor."
-                >
-                  <form
-                    onSubmit={handleCreateEvent}
+                {/* Quick Action Toolbar */}
+                <div className="venue-action-toolbar" role="toolbar" aria-label="Venue setup actions">
+                  <button
+                    type="button"
+                    className={`venue-hub-btn ${activeSetupDrawer === "zone" ? "active" : ""}`}
+                    onClick={() => setActiveSetupDrawer((prev) => (prev === "zone" ? null : "zone"))}
+                    aria-expanded={activeSetupDrawer === "zone"}
                   >
+                    <span className="hub-btn-icon" aria-hidden="true">📍</span>
+                    <div className="hub-btn-text">
+                      <strong>+ Add Monitored Zone</strong>
+                      <small>Define area & capacity limit</small>
+                    </div>
+                  </button>
 
-                    <label>
-                      Event name
-                    </label>
+                  <button
+                    type="button"
+                    className={`venue-hub-btn ${activeSetupDrawer === "checkpoint" ? "active" : ""}`}
+                    onClick={() => setActiveSetupDrawer((prev) => (prev === "checkpoint" ? null : "checkpoint"))}
+                    aria-expanded={activeSetupDrawer === "checkpoint"}
+                  >
+                    <span className="hub-btn-icon" aria-hidden="true">🚪</span>
+                    <div className="hub-btn-text">
+                      <strong>+ Add Gate / Checkpoint</strong>
+                      <small>Configure entry/exit turnstiles</small>
+                    </div>
+                  </button>
 
-                    <input
-                      placeholder="e.g. TechFest 2026"
-                      value={eventForm.name}
-                      onChange={(e) =>
-                        setEventForm({
-                          ...eventForm,
-                          name: e.target.value,
-                        })
-                      }
-                      required
-                    />
+                  <button
+                    type="button"
+                    className={`venue-hub-btn ${activeSetupDrawer === "participant" ? "active" : ""}`}
+                    onClick={() => setActiveSetupDrawer((prev) => (prev === "participant" ? null : "participant"))}
+                    aria-expanded={activeSetupDrawer === "participant"}
+                  >
+                    <span className="hub-btn-icon" aria-hidden="true">🎟️</span>
+                    <div className="hub-btn-text">
+                      <strong>+ Register Attendee</strong>
+                      <small>Issue access badge / scan token</small>
+                    </div>
+                  </button>
+                </div>
 
-                    <label>
-                      Description
-                    </label>
-
-                    <textarea
-                      placeholder="Brief description of the event"
-                      value={
-                        eventForm.description
-                      }
-                      onChange={(e) =>
-                        setEventForm({
-                          ...eventForm,
-                          description:
-                            e.target.value,
-                        })
-                      }
-                    />
-
-                    <div className="two-inputs">
-
-                      <div>
-                        <label>
-                          Start time
-                        </label>
-
-                        <input
-                          type="datetime-local"
-                          value={
-                            eventForm.start_time
-                          }
-                          onChange={(e) =>
-                            setEventForm({
-                              ...eventForm,
-                              start_time:
-                                e.target.value,
-                            })
-                          }
-                        />
+                {/* Drawer for Zone */}
+                {activeSetupDrawer === "zone" && (
+                  <div className="venue-setup-drawer" role="region" aria-label="Add Zone Drawer">
+                    <div className="drawer-header">
+                      <div className="drawer-title">
+                        <span className="form-icon purple-bg" aria-hidden="true">01</span>
+                        <div>
+                          <h3>Add Monitored Zone</h3>
+                          <p>Define an architectural area and set its maximum occupancy limit.</p>
+                        </div>
                       </div>
-
-                      <div>
-                        <label>
-                          End time
-                        </label>
-
-                        <input
-                          type="datetime-local"
-                          value={
-                            eventForm.end_time
-                          }
-                          onChange={(e) =>
-                            setEventForm({
-                              ...eventForm,
-                              end_time:
-                                e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-
+                      <button
+                        type="button"
+                        className="drawer-close-btn"
+                        onClick={() => setActiveSetupDrawer(null)}
+                        aria-label="Close form"
+                      >
+                        ✕
+                      </button>
                     </div>
 
-                    <button className="primary-btn">
-                      Create Event
-                    </button>
-
-                  </form>
-                </SetupCard>
-
-                {/* ZONE */}
-                <SetupCard
-                  number="02"
-                  color="purple-bg"
-                  title="Create Zone"
-                  text="Define an area and its capacity."
-                >
-                  <form
-                    onSubmit={handleCreateZone}
-                  >
-
-                    <label>
-                      Zone name
-                    </label>
-
-                    <input
-                      placeholder="e.g. Main Hall"
-                      value={zoneForm.name}
-                      onChange={(e) =>
-                        setZoneForm({
-                          ...zoneForm,
-                          name: e.target.value,
-                        })
-                      }
-                      required
-                    />
-
-                    <label>
-                      Capacity
-                    </label>
-
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Maximum people"
-                      value={zoneForm.capacity}
-                      onChange={(e) =>
-                        setZoneForm({
-                          ...zoneForm,
-                          capacity:
-                            e.target.value,
-                        })
-                      }
-                      required
-                    />
-
-                    <button className="primary-btn">
-                      Create Zone
-                    </button>
-
-                  </form>
-                </SetupCard>
-
-                {/* CHECKPOINT */}
-                <SetupCard
-                  number="03"
-                  color="orange-bg"
-                  title="Create Checkpoint"
-                  text="Configure a detection point."
-                >
-                  <form
-                    onSubmit={
-                      handleCreateCheckpoint
-                    }
-                  >
-
-                    <label>
-                      Checkpoint name
-                    </label>
-
-                    <input
-                      placeholder="e.g. Main Entrance"
-                      value={
-                        checkpointForm.name
-                      }
-                      onChange={(e) =>
-                        setCheckpointForm({
-                          ...checkpointForm,
-                          name: e.target.value,
-                        })
-                      }
-                      required
-                    />
-
-                    <label>
-                      Assigned zone
-                    </label>
-
-                    <select
-                      value={
-                        checkpointForm.zone_id
-                      }
-                      onChange={(e) =>
-                        setCheckpointForm({
-                          ...checkpointForm,
-                          zone_id:
-                            e.target.value,
-                        })
-                      }
-                      required
-                    >
-                      <option value="">
-                        Select zone
-                      </option>
-
-                      {zones.map((zone) => (
-                        <option
-                          key={zone.id}
-                          value={zone.id}
-                        >
-                          {zone.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div className="two-inputs">
-
-                      <div>
-                        <label>
-                          Method
-                        </label>
-
-                        <select
-                          value={
-                            checkpointForm.type
-                          }
-                          onChange={(e) =>
-                            setCheckpointForm({
-                              ...checkpointForm,
-                              type: e.target.value,
-                            })
-                          }
-                        >
-                          <option>
-                            QR
-                          </option>
-
-                          <option>
-                            NFC
-                          </option>
-
-                          <option>
-                            RFID
-                          </option>
-
-                          <option>
-                            BARCODE
-                          </option>
-                        </select>
+                    <form onSubmit={handleCreateZone} className="drawer-form">
+                      <div className="form-row">
+                        <div className="form-field">
+                          <label>Zone Name</label>
+                          <input
+                            placeholder="e.g. Main Arena, North Hall, VIP Lounge"
+                            value={zoneForm.name}
+                            onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })}
+                            required
+                            autoFocus
+                          />
+                        </div>
+                        <div className="form-field">
+                          <label>Maximum Capacity (People)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="e.g. 250"
+                            value={zoneForm.capacity}
+                            onChange={(e) => setZoneForm({ ...zoneForm, capacity: e.target.value })}
+                            required
+                          />
+                        </div>
                       </div>
-
-                      <div>
-                        <label>
-                          Direction
-                        </label>
-
-                        <select
-                          value={
-                            checkpointForm.direction
-                          }
-                          onChange={(e) =>
-                            setCheckpointForm({
-                              ...checkpointForm,
-                              direction:
-                                e.target.value,
-                            })
-                          }
-                        >
-                          <option>
-                            ENTRY
-                          </option>
-
-                          <option>
-                            EXIT
-                          </option>
-                        </select>
+                      <div className="drawer-actions">
+                        <button type="submit" className="primary-btn">Create Zone</button>
+                        <button type="button" className="ghost-btn" onClick={() => setActiveSetupDrawer(null)}>Cancel</button>
                       </div>
+                    </form>
+                  </div>
+                )}
 
+                {/* Drawer for Checkpoint */}
+                {activeSetupDrawer === "checkpoint" && (
+                  <div className="venue-setup-drawer" role="region" aria-label="Add Checkpoint Drawer">
+                    <div className="drawer-header">
+                      <div className="drawer-title">
+                        <span className="form-icon orange-bg" aria-hidden="true">02</span>
+                        <div>
+                          <h3>Add Ingress / Egress Gate</h3>
+                          <p>Configure a physical turnstile, barcode reader, or RFID gate attached to a zone.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="drawer-close-btn"
+                        onClick={() => setActiveSetupDrawer(null)}
+                        aria-label="Close form"
+                      >
+                        ✕
+                      </button>
                     </div>
 
-                    <button className="primary-btn">
-                      Create Checkpoint
-                    </button>
+                    <form onSubmit={handleCreateCheckpoint} className="drawer-form">
+                      <div className="form-row">
+                        <div className="form-field">
+                          <label>Checkpoint Name</label>
+                          <input
+                            placeholder="e.g. Turnstile A - North Entry"
+                            value={checkpointForm.name}
+                            onChange={(e) => setCheckpointForm({ ...checkpointForm, name: e.target.value })}
+                            required
+                            autoFocus
+                          />
+                        </div>
+                        <div className="form-field">
+                          <label>Assigned Zone</label>
+                          <select
+                            value={checkpointForm.zone_id}
+                            onChange={(e) => setCheckpointForm({ ...checkpointForm, zone_id: e.target.value })}
+                            required
+                          >
+                            <option value="">Select a zone</option>
+                            {zones.map((zone) => (
+                              <option key={zone.id} value={zone.id}>
+                                {zone.name} (Cap: {zone.capacity})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-field">
+                          <label>Scanning Method</label>
+                          <select
+                            value={checkpointForm.type}
+                            onChange={(e) => setCheckpointForm({ ...checkpointForm, type: e.target.value })}
+                          >
+                            <option value="QR">QR Code</option>
+                            <option value="NFC">NFC Tap</option>
+                            <option value="RFID">RFID Gate</option>
+                            <option value="BARCODE">Barcode</option>
+                          </select>
+                        </div>
+                        <div className="form-field">
+                          <label>Flow Direction</label>
+                          <select
+                            value={checkpointForm.direction}
+                            onChange={(e) => setCheckpointForm({ ...checkpointForm, direction: e.target.value })}
+                          >
+                            <option value="ENTRY">ENTRY (Increments Occupancy)</option>
+                            <option value="EXIT">EXIT (Decrements Occupancy)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="drawer-actions">
+                        <button type="submit" className="primary-btn">Create Checkpoint</button>
+                        <button type="button" className="ghost-btn" onClick={() => setActiveSetupDrawer(null)}>Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
-                  </form>
-                </SetupCard>
+                {/* Drawer for Participant */}
+                {activeSetupDrawer === "participant" && (
+                  <div className="venue-setup-drawer" role="region" aria-label="Register Participant Drawer">
+                    <div className="drawer-header">
+                      <div className="drawer-title">
+                        <span className="form-icon green-bg" aria-hidden="true">03</span>
+                        <div>
+                          <h3>Register Attendee</h3>
+                          <p>Issue an attendee pass or badge token for turnstile scan tracking.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="drawer-close-btn"
+                        onClick={() => setActiveSetupDrawer(null)}
+                        aria-label="Close form"
+                      >
+                        ✕
+                      </button>
+                    </div>
 
-                {/* PARTICIPANT */}
-                <SetupCard
-                  number="04"
-                  color="green-bg"
-                  title="Create Participant"
-                  text="Register a participant for tracking."
-                >
-                  <form
-                    onSubmit={
-                      handleCreateParticipant
-                    }
-                  >
+                    <form onSubmit={handleCreateParticipant} className="drawer-form">
+                      <div className="form-row">
+                        <div className="form-field">
+                          <label>Attendee Full Name</label>
+                          <input
+                            placeholder="e.g. John Doe"
+                            value={participantForm.name}
+                            onChange={(e) => setParticipantForm({ ...participantForm, name: e.target.value })}
+                            required
+                            autoFocus
+                          />
+                        </div>
+                        <div className="form-field">
+                          <label>Email Address</label>
+                          <input
+                            type="email"
+                            placeholder="attendee@example.com"
+                            value={participantForm.email}
+                            onChange={(e) => setParticipantForm({ ...participantForm, email: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-field" style={{ flex: 1 }}>
+                          <label>Participant Token (Optional)</label>
+                          <input
+                            placeholder="Leave blank to auto-generate secure token"
+                            value={participantForm.token}
+                            onChange={(e) => setParticipantForm({ ...participantForm, token: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="drawer-actions">
+                        <button type="submit" className="primary-btn">Register Attendee</button>
+                        <button type="button" className="ghost-btn" onClick={() => setActiveSetupDrawer(null)}>Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
-                    <label>
-                      Name
-                    </label>
-
-                    <input
-                      placeholder="Participant name"
-                      value={
-                        participantForm.name
-                      }
-                      onChange={(e) =>
-                        setParticipantForm({
-                          ...participantForm,
-                          name: e.target.value,
-                        })
-                      }
-                      required
-                    />
-
-                    <label>
-                      Email
-                    </label>
-
-                    <input
-                      type="email"
-                      placeholder="participant@email.com"
-                      value={
-                        participantForm.email
-                      }
-                      onChange={(e) =>
-                        setParticipantForm({
-                          ...participantForm,
-                          email:
-                            e.target.value,
-                        })
-                      }
-                    />
-
-                    <label>
-                      Participant token
-                    </label>
-
-                    <input
-                      placeholder="Leave blank to generate automatically"
-                      value={
-                        participantForm.token
-                      }
-                      onChange={(e) =>
-                        setParticipantForm({
-                          ...participantForm,
-                          token:
-                            e.target.value,
-                        })
-                      }
-                    />
-
-                    <button className="primary-btn">
-                      Add Participant
-                    </button>
-
-                  </form>
-                </SetupCard>
-
-              </div>
-            </section>
+              </section>
             )}
 
             {/* TRACKING (Hidden in Viewer Executive Kiosk Mode) */}
@@ -2056,35 +1913,6 @@ function App({
           Real-time monitoring • Decision support
         </span>
       </footer>
-
-    </div>
-  );
-}
-
-function SetupCard({
-  number,
-  color,
-  title,
-  text,
-  children,
-}) {
-  return (
-    <div className="setup-card">
-
-      <div className="form-title">
-
-        <div className={`form-icon ${color}`}>
-          {number}
-        </div>
-
-        <div>
-          <h3>{title}</h3>
-          <p>{text}</p>
-        </div>
-
-      </div>
-
-      {children}
 
     </div>
   );
