@@ -1,3 +1,5 @@
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
@@ -24,6 +26,10 @@ const io = new Server(server, {
 });
 
 app.use(cors());
+app.use((req, res, next) => {
+  res.setHeader("X-Backend-Instance", require("os").hostname());
+  next();
+});
 app.use(express.json({ limit: "100kb" }));
 app.use("/api/auth", require("./auth"));
 

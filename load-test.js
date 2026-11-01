@@ -36,12 +36,14 @@ async function main() {
         } else {
           succeeded++;
           const text = await response.text();
+          const headerInst = response.headers.get("x-backend-instance");
           try {
             const data = JSON.parse(text);
-            const inst = data.instance || "unknown";
+            const inst = data.instance || headerInst || "unknown";
             instanceCounts[inst] = (instanceCounts[inst] || 0) + 1;
           } catch {
-            // Not JSON or plain text
+            const inst = headerInst || "unknown";
+            instanceCounts[inst] = (instanceCounts[inst] || 0) + 1;
           }
         }
       } catch (err) {

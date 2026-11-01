@@ -3,6 +3,10 @@
  * Proves that Update and Delete APIs reject requests without a valid token (401),
  * reject requests from unauthorized roles (403), and allow authorized organizers.
  */
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
+const jwt = require("jsonwebtoken");
+
 const BASE_URL = process.env.BASE_URL || "http://localhost:5000/api";
 
 async function runRbacTests() {
@@ -20,7 +24,8 @@ async function runRbacTests() {
     console.log(`Status Code: ${res1.status} (${res1.status === 401 ? "PASS - 401 Unauthorized" : "FAIL"})`);
     console.log(`Response:    ${JSON.stringify(body1)}\n`);
   } catch (err) {
-    console.log(`Connection error: ${err.message}\n`);
+    console.log(`Connection error: ${err.message}`);
+    console.log(`(Start backend server with 'npm start' to test against live endpoint)\n`);
   }
 
   // Test 2: Calling PUT /api/events/1 without Authorization token
@@ -48,6 +53,25 @@ async function runRbacTests() {
     const body3 = await res3.json();
     console.log(`Status Code: ${res3.status} (${res3.status === 401 ? "PASS - 401 Unauthorized" : "FAIL"})`);
     console.log(`Response:    ${JSON.stringify(body3)}\n`);
+  } catch (err) {
+    console.log(`Connection error: ${err.message}\n`);
+  }
+
+  // Test 4: Calling DELETE /api/events/1 with a valid Staff token (Forbidden role)
+  console.log("TEST 4: Calling DELETE /api/events/1 with valid Staff token (role=staff)...");
+  try {
+    const staffToken = jwt.sign(
+      { sub: "2", email: "staff1@event.com", role: "staff", type: "access", jti: "test-staff-jti" },
+      process.env.JWT_SECRET || "fallback_test_secret_32_bytes_long!!",
+      { expiresIn: 300, issuer: "event-crowd-management", audience: "event-crowd-management-client" }
+    );
+    const res4 = await fetch(`${BASE_URL}/events/1`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${staffToken}` },
+    });
+    const body4 = await res4.json();
+    console.log(`Status Code: ${res4.status} (${res4.status === 403 ? "PASS - 403 Forbidden" : "FAIL"})`);
+    console.log(`Response:    ${JSON.stringify(body4)}\n`);
   } catch (err) {
     console.log(`Connection error: ${err.message}\n`);
   }
