@@ -7,6 +7,8 @@ export default function RadialGauge({ value = 0, size = 130, strokeWidth = 10, s
   const clamped = Math.min(Math.max(value, 0), 100);
   const strokeDashoffset = circumference - (clamped / 100) * circumference;
 
+  const gradId = `gauge-grad-${status}`;
+
   return (
     <div
       className="radial-gauge-container"
@@ -17,6 +19,12 @@ export default function RadialGauge({ value = 0, size = 130, strokeWidth = 10, s
       aria-label={`Event utilization gauge: ${clamped}% (${meta.label})`}
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="radial-gauge-svg">
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={meta.gradient ? meta.gradient[0] : meta.color} />
+            <stop offset="100%" stopColor={meta.gradient ? meta.gradient[1] : meta.color} />
+          </linearGradient>
+        </defs>
         <circle
           className="radial-gauge-bg"
           cx={size / 2}
@@ -30,7 +38,7 @@ export default function RadialGauge({ value = 0, size = 130, strokeWidth = 10, s
           cy={size / 2}
           r={radius}
           strokeWidth={strokeWidth}
-          stroke={meta.color}
+          stroke={`url(#${gradId})`}
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"

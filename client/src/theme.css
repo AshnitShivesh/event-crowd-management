@@ -30,6 +30,12 @@
   --theme-progress: #e2e8f0;
   --theme-subtle: #f8fafc;
   --theme-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+
+  --translucent-surface: rgba(255, 255, 255, 0.78);
+  --translucent-border: rgba(226, 232, 240, 0.85);
+  --translucent-hover: rgba(15, 23, 42, 0.05);
+  --ambient-grad-1: rgba(37, 99, 235, 0.06);
+  --ambient-grad-2: rgba(124, 58, 237, 0.05);
 }
 
 :root[data-theme="dark"] {
@@ -63,6 +69,12 @@
   --theme-progress: #293443;
   --theme-subtle: #202a38;
   --theme-shadow: 0 3px 12px rgb(0 0 0 / 12%);
+
+  --translucent-surface: rgba(17, 24, 39, 0.75);
+  --translucent-border: rgba(255, 255, 255, 0.09);
+  --translucent-hover: rgba(255, 255, 255, 0.07);
+  --ambient-grad-1: rgba(59, 130, 246, 0.1);
+  --ambient-grad-2: rgba(139, 92, 246, 0.08);
 }
 
 :root[data-theme] {
