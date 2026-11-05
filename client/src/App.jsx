@@ -1231,13 +1231,6 @@ function App() {
 
       {tab === "dashboard" && dashboardEventId && (
         <div className={`workspace-dashboard role-${user.role}`}>
-          <button
-            className="dashboard-back-button"
-            onClick={() => setTab("home")}
-          >
-            ← Back to home
-          </button>
-
           <Dashboard
             userRole={user.role}
             hideEventCreation

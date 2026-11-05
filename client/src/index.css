@@ -4,8 +4,8 @@
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
 
-  color: #e5e7eb;
-  background: #0b0f14;
+  color: var(--text, #e5e7eb);
+  background: var(--background, #0b0f14);
 
   --navy: #111827;
   --navy-light: #172033;

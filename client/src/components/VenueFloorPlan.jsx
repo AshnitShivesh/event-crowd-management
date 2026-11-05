@@ -11,7 +11,9 @@ export default function VenueFloorPlan({
 
   // Layout generator: maps zones dynamically onto an architectural blueprint coordinate space
   const layoutWidth = 900;
-  const layoutHeight = 440;
+  const cols = zones.length <= 4 ? 2 : 3;
+  const rows = Math.max(1, Math.ceil(zones.length / cols));
+  const layoutHeight = zones.length <= 4 ? 440 : Math.max(440, 50 + rows * 180 + 30);
 
   function calculateRoomBox(index, total) {
     if (total === 1) {

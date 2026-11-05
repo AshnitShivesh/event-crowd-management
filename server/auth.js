@@ -181,8 +181,9 @@ router.post("/login", async (req, res) => {
       [email]
     );
     const user = result.rows[0];
-    const passwordOk = user ? await bcrypt.compare(password, user.password_hash) : false;
-    if (!passwordOk) return res.status(401).json({ error: "Invalid email or password." });
+    const DUMMY_HASH = "$2a$12$e8wEU5L3hX16ZqGfK5LzSeuJd1lQ8r2kK4uV6zM8qO0rO8oP1.jQY";
+    const passwordOk = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
+    if (!user || !passwordOk) return res.status(401).json({ error: "Invalid email or password." });
 
     if (!user.totp_enabled) {
       const otp = await import("otplib");
@@ -267,8 +268,17 @@ router.post("/logout", async (req, res) => {
     const token = header.startsWith("Bearer ") ? header.slice(7) : "";
     if (!token) return res.status(400).json({ error: "Bearer access token is required." });
     const { jwtSecret } = getSecrets();
-    const payload = jwt.verify(token, jwtSecret, { issuer: "event-crowd-management", audience: "event-crowd-management-client" });
-    if (payload.type !== "access" || !payload.jti) return res.status(401).json({ error: "Invalid access token." });
+    let payload;
+    try {
+      payload = jwt.verify(token, jwtSecret, { issuer: "event-crowd-management", audience: "event-crowd-management-client" });
+    } catch (err) {
+      if (err.name === "TokenExpiredError") {
+        payload = jwt.decode(token);
+      } else {
+        throw err;
+      }
+    }
+    if (!payload || payload.type !== "access" || !payload.jti) return res.status(401).json({ error: "Invalid access token." });
     await db.query("UPDATE auth_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE id = $1 AND token_hash = $2 AND revoked_at IS NULL", [payload.jti, hashToken(token)]);
     return res.json({ message: "Logged out; session revoked." });
   } catch (err) {

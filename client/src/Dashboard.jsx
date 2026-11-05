@@ -230,7 +230,7 @@ function App({
 
     if (selectedEvent) socket.emit("event:join", selectedEvent);
 
-    socket.on("tracking:update", async (result) => {
+    socket.on("tracking:update", (result) => {
       const zoneId = Number(result?.zone?.id);
       if (!zoneId) return;
 
@@ -248,21 +248,19 @@ function App({
         )
       );
 
-      try {
-        const [dashboardData, analyticsData, trackingData, alertsData] =
-          await Promise.all([
-            getDashboard(selectedEvent),
-            getAnalytics(selectedEvent),
-            getTrackingEvents(),
-            getAlerts(),
-          ]);
+      if (result.trackingEvent) {
+        setTrackingEvents((prev) => [
+          {
+            ...result.trackingEvent,
+            zone_name: result.zone?.name || "Zone",
+          },
+          ...prev.slice(0, 49),
+        ]);
+      }
 
-        setDashboard(dashboardData);
-        setAnalytics(analyticsData);
-        setTrackingEvents(trackingData);
-        setAlerts(alertsData);
-      } catch (error) {
-        console.error("Real-time refresh error:", error);
+      // Optimize: Only refresh alerts on status transitions rather than flooding the API on every single scan
+      if (result.status === "HIGH" || result.status === "CRITICAL" || result.status === "NORMAL") {
+        getAlerts().then(setAlerts).catch(() => {});
       }
     });
 
@@ -439,7 +437,7 @@ function App({
 
     const token =
       participantForm.token.trim() ||
-      `EVT-${String(
+      `E${selectedEvent || 1}-${String(
         participants.length + 1
       ).padStart(3, "0")}`;
 
@@ -659,102 +657,14 @@ function App({
   return (
     <div className={`app app-role-${userRole} ${hideEventCreation ? "hide-event-creation" : ""}`}>
 
-      {/* HEADER */}
-      <header className="app-header">
-        <div className="header-inner">
-
-          <div className="brand">
-            <div className="brand-mark">
-              EC
-            </div>
-
-            <div>
-              <h1>
-                Event Crowd Management
-              </h1>
-
-              <p>
-                Real-time crowd monitoring &
-                decision support
-              </p>
-            </div>
-          </div>
-
-          <div className="mode-switch">
-            <span className="mode-label">
-              System Mode
-            </span>
-
-            <div className="mode-buttons">
-
-              <button
-                className={
-                  mode === "LIVE"
-                    ? "mode-btn active live"
-                    : "mode-btn"
-                }
-                onClick={() =>
-                  setMode("LIVE")
-                }
-              >
-                <span className="mode-dot"></span>
-                LIVE
-              </button>
-
-              <button
-                className={
-                  mode === "DEMO"
-                    ? "mode-btn active demo"
-                    : "mode-btn"
-                }
-                onClick={() =>
-                  setMode("DEMO")
-                }
-              >
-                DEMO
-              </button>
-
-            </div>
-
-            {/* SIMULATION TOGGLES DIRECTLY UNDER DEMO */}
-            {mode === "DEMO" && (
-              <div className="simulation-mode-buttons">
-
-                {[
-                  "NORMAL",
-                  "REDUCED",
-                  "BURST",
-                ].map((value) => (
-                  <button
-                    key={value}
-                    className={
-                      simMode === value
-                        ? "simulation-mode active"
-                        : "simulation-mode"
-                    }
-                    onClick={() =>
-                      setSimMode(value)
-                    }
-                  >
-                    {value}
-                  </button>
-                ))}
-
-              </div>
-            )}
-
-          </div>
-        </div>
-      </header>
-
-      <main>
-        {/* BREADCRUMB & QUICK EVENT SWITCHER (UI Design 10) */}
+      {/* UNIFIED DASHBOARD CONTROL BAR */}
+      <header className="dashboard-control-bar">
         <nav className="dashboard-breadcrumb-bar" aria-label="Breadcrumb navigation">
           <div className="breadcrumb-links">
             {onBackToHome && (
               <>
-                <button type="button" className="breadcrumb-btn" onClick={onBackToHome}>
-                  🏠 Home
+                <button type="button" className="breadcrumb-btn back-pill" onClick={onBackToHome}>
+                  ← Back
                 </button>
                 <span className="breadcrumb-separator" aria-hidden="true">/</span>
               </>
@@ -809,6 +719,43 @@ function App({
           </div>
         </nav>
 
+        <div className="mode-switch">
+          <span className="mode-label">System Mode</span>
+          <div className="mode-buttons">
+            <button
+              className={mode === "LIVE" ? "mode-btn active live" : "mode-btn"}
+              onClick={() => setMode("LIVE")}
+            >
+              <span className="mode-dot"></span>
+              LIVE
+            </button>
+
+            <button
+              className={mode === "DEMO" ? "mode-btn active demo" : "mode-btn"}
+              onClick={() => setMode("DEMO")}
+            >
+              DEMO
+            </button>
+          </div>
+
+          {mode === "DEMO" && (
+            <div className="simulation-mode-buttons">
+              {["NORMAL", "REDUCED", "BURST"].map((value) => (
+                <button
+                  key={value}
+                  className={simMode === value ? "simulation-mode active" : "simulation-mode"}
+                  onClick={() => setSimMode(value)}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+
+      <main>
+
         {/* MESSAGE */}
         {message && (
           <div
@@ -845,36 +792,17 @@ function App({
             </p>
           </div>
 
-          <div className="event-select-box">
-
-            <label>
-              Monitoring event
-            </label>
-
-            <select
-              value={selectedEvent}
-              onChange={(e) =>
-                handleSelectEvent(e.target.value)
-              }
-            >
-              <option value="">
-                Select an event
-              </option>
-
-              {events.map((event) => (
-                <option
-                  key={event.id}
-                  value={event.id}
-                >
-                  {event.name}
-                </option>
-              ))}
-            </select>
-
-            {selectedEvent && userRole === "organizer" && (
-              <button className="delete-event-btn" onClick={handleDeleteEvent}>Delete Event</button>
+          <div className="event-hero-meta-group">
+            {selectedEventObject?.start_time && (
+              <span className="event-date-chip">
+                📅 {new Date(selectedEventObject.start_time).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </span>
             )}
-
+            {selectedEvent && userRole === "organizer" && (
+              <button className="delete-event-btn" onClick={handleDeleteEvent}>
+                Delete Event
+              </button>
+            )}
           </div>
         </section>
 
@@ -1602,8 +1530,8 @@ function App({
               </section>
             )}
 
-            {/* TRACKING (Hidden in Viewer Executive Kiosk Mode) */}
-            {userRole !== "viewer" && (
+            {/* TRACKING: Organizer Manual Tracking (Staff uses dedicated Gate Station above; Viewer is read-only) */}
+            {userRole === "organizer" && (
             <section className="tracking-section">
 
               <div className="section-heading">

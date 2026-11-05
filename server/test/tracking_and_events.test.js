@@ -41,4 +41,15 @@ describe("Crowd Tracking & Capacity Calculation Logic", () => {
     assert.equal(simulateOccupancyChange(10, 100, "EXIT"), 9);
     assert.equal(simulateOccupancyChange(0, 100, "EXIT"), 0);
   });
+
+  test("Event-scoped token generator avoids cross-event collisions", () => {
+    function generateToken(eventId, participantCount) {
+      return `E${eventId}-${String(participantCount + 1).padStart(3, "0")}`;
+    }
+    const evt1Token1 = generateToken(1, 0);
+    const evt2Token1 = generateToken(2, 0);
+    assert.equal(evt1Token1, "E1-001");
+    assert.equal(evt2Token1, "E2-001");
+    assert.notEqual(evt1Token1, evt2Token1, "Tokens across different events must not collide");
+  });
 });

@@ -26,10 +26,12 @@ CREATE TABLE checkpoints (
 
 CREATE TABLE participants (
     id SERIAL PRIMARY KEY,
+    event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150),
-    token VARCHAR(100) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    token VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_participants_event_token UNIQUE (event_id, token)
 );
 
 CREATE TABLE tracking_events (

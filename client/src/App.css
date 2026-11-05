@@ -1,42 +1,42 @@
 @import "./theme.css";
 :root {
   color-scheme: light;
-  --app-bg: #e5e7eb;
-  --app-surface: #bfc4cc;
-  --app-surface-raised: #f3f4f6;
-  --app-text: #374151;
-  --app-heading: #202938;
-  --app-muted: #5f6876;
-  --app-border: #a5acb7;
-  --app-accent: #3159a8;
-  --app-accent-hover: #244786;
-  --app-accent-soft: #dbe5f8;
-  --app-danger: #a83232;
-  --app-danger-soft: #f9e2e2;
-  --app-success: #246b49;
-  --app-success-soft: #dcefe4;
-  --app-shadow: 0 5px 18px rgb(31 41 55 / 7%);
-  --app-radius: 10px;
+  --app-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-raised: #f1f5f9;
+  --app-text: #0f172a;
+  --app-heading: #020617;
+  --app-muted: #64748b;
+  --app-border: #e2e8f0;
+  --app-accent: #2563eb;
+  --app-accent-hover: #1d4ed8;
+  --app-accent-soft: #eff6ff;
+  --app-danger: #dc2626;
+  --app-danger-soft: #fef2f2;
+  --app-success: #16a34a;
+  --app-success-soft: #f0fdf4;
+  --app-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  --app-radius: 12px;
   --app-transition: 160ms ease;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --app-bg: #0d1118;
-  --app-surface: #171e29;
-  --app-surface-raised: #202a38;
-  --app-text: #d5dbe5;
-  --app-heading: #f0f3f8;
-  --app-muted: #9ba7b8;
-  --app-border: #344153;
-  --app-accent: #8aa9ed;
-  --app-accent-hover: #a6bdf2;
-  --app-accent-soft: #202f4c;
-  --app-danger: #ffb4b4;
-  --app-danger-soft: #402326;
-  --app-success: #9bdfb8;
-  --app-success-soft: #1e382b;
-  --app-shadow: 0 5px 20px rgb(0 0 0 / 18%);
+  --app-bg: #0b0f17;
+  --app-surface: #111827;
+  --app-surface-raised: #1f2937;
+  --app-text: #f1f5f9;
+  --app-heading: #ffffff;
+  --app-muted: #94a3b8;
+  --app-border: #1e293b;
+  --app-accent: #3b82f6;
+  --app-accent-hover: #60a5fa;
+  --app-accent-soft: #172554;
+  --app-danger: #ef4444;
+  --app-danger-soft: #451a1a;
+  --app-success: #22c55e;
+  --app-success-soft: #143823;
+  --app-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
 }
 
 .authenticated-app,
@@ -855,7 +855,67 @@
    DA3 UI/UX ENHANCEMENTS & ADVANCED CROWD MANAGEMENT COMPONENTS
    ========================================================================== */
 
-/* 1. Breadcrumbs & Quick Event Switcher (UI Design 10) */
+/* 1. Breadcrumbs, Unified Control Bar & Quick Event Switcher (UI Design 10) */
+.dashboard-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 18px;
+  margin-bottom: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--app-shadow, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+.dashboard-control-bar .dashboard-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.event-hero-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.event-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.back-pill {
+  padding: 6px 12px !important;
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  color: var(--app-accent) !important;
+  font-weight: 600 !important;
+  transition: all 0.15s ease !important;
+}
+
+.back-pill:hover {
+  background: var(--app-accent-soft) !important;
+}
+
 .dashboard-breadcrumb-bar {
   display: flex;
   align-items: center;

@@ -700,12 +700,12 @@ app.post("/api/tracking", requireAuth, requireRole("organizer", "staff"), async 
         [currentZone.id]
       );
 
-      if (!existing.rows.length) {
-        const message =
-          status === "CRITICAL"
-            ? `${currentZone.name} has reached capacity`
-            : `${currentZone.name} is approaching capacity`;
+      const message =
+        status === "CRITICAL"
+          ? `${currentZone.name} has reached capacity`
+          : `${currentZone.name} is approaching capacity`;
 
+      if (!existing.rows.length) {
         await client.query(
           `INSERT INTO alerts
            (zone_id, type, message)
@@ -715,6 +715,11 @@ app.post("/api/tracking", requireAuth, requireRole("organizer", "staff"), async 
             status,
             message,
           ]
+        );
+      } else {
+        await client.query(
+          `UPDATE alerts SET type = $1, message = $2 WHERE id = $3`,
+          [status, message, existing.rows[0].id]
         );
       }
     }

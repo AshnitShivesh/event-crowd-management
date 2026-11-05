@@ -28,7 +28,7 @@ function requireAuth(req, res, next) {
     }
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const result = await db.query(
-      `SELECT s.id, s.user_id, s.expires_at, s.revoked_at,
+      `SELECT s.id, s.user_id, s.expires_at, s.revoked_at, s.last_seen_at,
               u.email, u.name, u.role, u.totp_enabled
        FROM auth_sessions s
        JOIN users u ON u.id = s.user_id
@@ -41,7 +41,11 @@ function requireAuth(req, res, next) {
     }
     req.user = { id: session.user_id, email: session.email, name: session.name, role: session.role, sessionId: session.id };
     req.accessToken = token;
-    await db.query("UPDATE auth_sessions SET last_seen_at = CURRENT_TIMESTAMP WHERE id = $1", [session.id]);
+    // Throttle last_seen_at writes to avoid database write amplification on read-heavy workloads
+    const shouldUpdateLastSeen = !session.last_seen_at || (Date.now() - new Date(session.last_seen_at).getTime() > 300000);
+    if (shouldUpdateLastSeen) {
+      db.query("UPDATE auth_sessions SET last_seen_at = CURRENT_TIMESTAMP WHERE id = $1", [session.id]).catch(() => {});
+    }
     return next();
   })().catch((err) => {
     console.error("Authentication middleware failed:", err.message);
